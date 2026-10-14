@@ -9,3 +9,4 @@ export type {
   RttBounds,
   WatcherOptions,
 } from './watcher'
+export { watchFetch } from './fetch'
