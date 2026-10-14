@@ -11,6 +11,7 @@ import {
   type Quality,
   type RttBounds,
 } from './metrics'
+import { probe } from './probe'
 
 export type { ConnectionType, EffectiveType, Quality, RttBounds } from './metrics'
 
@@ -35,6 +36,14 @@ export interface NetworkState {
 export type NetworkListener = (state: NetworkState, prev: NetworkState) => void
 
 export interface WatcherOptions {
+  /** Same-origin HTTPS endpoint answering HEAD with 204. Without it only layers 1 + 2 run. */
+  pingUrl?: string
+  /** Probe timeout, ms. Default 5000. */
+  timeout?: number
+  /** Backoff ceiling while offline, ms. Default 30000. */
+  maxRetryDelay?: number
+  /** Opt-in idle probe interval, ms. Needs pingUrl; skipped while hidden or offline. */
+  heartbeat?: number
   /** Quality bands over smoothed RTT, ms. Default [150, 400, 1400]. */
   rttBounds?: RttBounds
   onOnline?: (state: NetworkState) => void
@@ -46,7 +55,7 @@ export interface NetworkWatcher {
   getState: () => NetworkState
   /** Returns an unsubscribe function. */
   subscribe: (listener: NetworkListener) => () => void
-  /** Decide now. */
+  /** Decide now; probes when pingUrl is set. Concurrent calls share one probe. */
   check: () => Promise<NetworkState>
   /** Evidence from outside: real requests, a service worker, the native OS. */
   report: (ok: boolean, rtt?: number) => void
@@ -59,15 +68,27 @@ export interface NetworkWatcher {
 const isBrowser = typeof window !== 'undefined'
 const DEFAULT_BOUNDS: RttBounds = [150, 400, 1400]
 const FIELDS = ['online', 'quality', 'rtt', 'downlink', 'effectiveType', 'type', 'saveData'] as const
+const FIRST_RETRY = 2000
 
 export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatcher {
-  const { rttBounds = DEFAULT_BOUNDS, onOnline, onOffline } = options
+  const {
+    pingUrl,
+    timeout = 5000,
+    maxRetryDelay = 30_000,
+    heartbeat,
+    rttBounds = DEFAULT_BOUNDS,
+    onOnline,
+    onOffline,
+  } = options
   const listeners = new Set<NetworkListener>()
   const info = connectionInfo()
   const startOnline = isBrowser ? navigator.onLine : true
   // Smoothed, unrounded averages; the state carries rounded values.
   let rttAvg = startOnline ? info.rtt : undefined
   let downlinkAvg = startOnline ? info.downlink : undefined
+  let inFlight: Promise<NetworkState> | undefined
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let retryDelay = FIRST_RETRY
 
   const metrics = (prevQuality: Quality) => ({
     quality: classify(rttAvg, prevQuality, rttBounds),
@@ -94,7 +115,14 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     for (const listener of listeners) listener(next, prev)
   }
 
+  const stopRetry = () => {
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+    retryDelay = FIRST_RETRY
+  }
+
   const goOnline = (sample?: number) => {
+    stopRetry()
     if (sample !== undefined) rttAvg = ewma(rttAvg, sample)
     update({ online: true, ...metrics(state.quality) })
   }
@@ -103,6 +131,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     rttAvg = undefined
     downlinkAvg = undefined
     update({ online: false, ...metrics('unknown') })
+    scheduleRetry()
   }
 
   const sampleDownlink = (mbps: number) => {
@@ -111,16 +140,36 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     update(metrics(state.quality))
   }
 
-  const check = async () => {
-    if (isBrowser) {
-      if (navigator.onLine) goOnline()
-      else goOffline()
+  const check = (): Promise<NetworkState> => {
+    if (!isBrowser) return Promise.resolve(state)
+    if (!navigator.onLine) {
+      goOffline()
+      return Promise.resolve(state)
     }
-    return state
+    if (!pingUrl) {
+      goOnline()
+      return Promise.resolve(state)
+    }
+    return (inFlight ??= probe(pingUrl, timeout).then((sample) => {
+      inFlight = undefined
+      if (sample === null) goOffline()
+      else goOnline(sample)
+      return state
+    }))
+  }
+
+  function scheduleRetry() {
+    if (!pingUrl || retryTimer !== undefined) return
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined
+      retryDelay = Math.min(retryDelay * 2, maxRetryDelay)
+      void check()
+    }, retryDelay)
   }
 
   const report = (ok: boolean, sample?: number) => {
     if (ok) goOnline(sample)
+    else if (pingUrl) void check()
   }
 
   const subscribe = (listener: NetworkListener) => {
@@ -163,6 +212,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
   }
 
   let stopThroughput = () => {}
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined
   if (isBrowser) {
     window.addEventListener('online', recheck)
     window.addEventListener('offline', handleOffline)
@@ -170,6 +220,12 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     document.addEventListener('visibilitychange', handleVisibility)
     conn?.addEventListener('change', handleConnection)
     stopThroughput = observeThroughput(sampleDownlink)
+    if (pingUrl && heartbeat) {
+      heartbeatTimer = setInterval(() => {
+        if (state.online && document.visibilityState === 'visible') recheck()
+      }, heartbeat)
+    }
+    recheck() // startup is a suspect
   }
 
   return {
@@ -186,6 +242,8 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
         document.removeEventListener('visibilitychange', handleVisibility)
         conn?.removeEventListener('change', handleConnection)
       }
+      clearInterval(heartbeatTimer)
+      stopRetry()
       stopThroughput()
       listeners.clear()
     },
