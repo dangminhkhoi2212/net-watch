@@ -89,6 +89,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
   let inFlight: Promise<NetworkState> | undefined
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let retryDelay = FIRST_RETRY
+  let destroyed = false
 
   const metrics = (prevQuality: Quality) => ({
     quality: classify(rttAvg, prevQuality, rttBounds),
@@ -152,6 +153,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     }
     return (inFlight ??= probe(pingUrl, timeout).then((sample) => {
       inFlight = undefined
+      if (destroyed) return state
       if (sample === null) goOffline()
       else goOnline(sample)
       return state
@@ -159,7 +161,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
   }
 
   function scheduleRetry() {
-    if (!pingUrl || retryTimer !== undefined) return
+    if (destroyed || !pingUrl || retryTimer !== undefined) return
     retryTimer = setTimeout(() => {
       retryTimer = undefined
       retryDelay = Math.min(retryDelay * 2, maxRetryDelay)
@@ -235,6 +237,7 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     report,
     waitForOnline,
     destroy() {
+      destroyed = true
       if (isBrowser) {
         window.removeEventListener('online', recheck)
         window.removeEventListener('offline', handleOffline)

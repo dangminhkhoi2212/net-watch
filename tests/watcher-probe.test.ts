@@ -61,25 +61,27 @@ test('runs at most one probe at a time', async () => {
   await expect(a).resolves.toMatchObject({ online: true })
 })
 
-test('report(false) triggers a confirming probe', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(ok())
-  vi.stubGlobal('fetch', fetchMock)
-  w = createNetworkWatcher({ pingUrl: '/ping' })
-  await w.check()
-  fetchMock.mockRejectedValue(networkError())
-  w.report(false)
-  await expect(w.check()).resolves.toMatchObject({ online: false })
-  expect(fetchMock).toHaveBeenCalledTimes(2)
-})
+const suspectTrigger = (name: string, trigger: () => void) =>
+  test(`${name} triggers a confirming probe`, async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok())
+    vi.stubGlobal('fetch', fetchMock)
+    w = createNetworkWatcher({ pingUrl: '/ping' })
+    await w.check()
+    fetchMock.mockRejectedValue(networkError())
+    trigger()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await expect(w.check()).resolves.toMatchObject({ online: false })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 
-test('the online event triggers a confirming probe', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(ok())
-  vi.stubGlobal('fetch', fetchMock)
-  w = createNetworkWatcher({ pingUrl: '/ping' })
-  await w.check()
-  fetchMock.mockRejectedValue(networkError())
-  setNetwork(true)
-  await expect(w.check()).resolves.toMatchObject({ online: false })
+suspectTrigger('report(false)', () => w?.report(false))
+suspectTrigger('the online event', () => setNetwork(true))
+suspectTrigger('pageshow from the bfcache', () =>
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
+)
+suspectTrigger('the tab becoming visible', () => {
+  visible('visible')
+  document.dispatchEvent(new Event('visibilitychange'))
 })
 
 test('sends no requests while online and idle without heartbeat', async () => {
@@ -197,5 +199,21 @@ test('destroy stops the heartbeat', async () => {
   await w.check()
   w.destroy()
   await vi.advanceTimersByTimeAsync(180_000)
+  expect(fetchMock).toHaveBeenCalledOnce()
+})
+
+test('destroy during an in-flight probe stops everything', async () => {
+  vi.useFakeTimers()
+  let fail: ((e: Error) => void) | undefined
+  const fetchMock = vi.fn(() => new Promise<Response>((_, reject) => (fail = reject)))
+  vi.stubGlobal('fetch', fetchMock)
+  const onOffline = vi.fn()
+  w = createNetworkWatcher({ pingUrl: '/ping', onOffline })
+  const pending = w.check()
+  w.destroy()
+  fail?.(networkError())
+  await pending
+  expect(onOffline).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(10 * 60_000)
   expect(fetchMock).toHaveBeenCalledOnce()
 })
