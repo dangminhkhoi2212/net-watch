@@ -1,17 +1,17 @@
 {
-  "name": "react-components-starter",
+  "name": "net-watch",
   "type": "module",
   "version": "0.0.0",
-  "description": "A starter for creating a React component library.",
-  "author": "Author Name <author.name@mail.com>",
+  "description": "Is the user really online, and how good is the connection? Zero-dependency core with React/Vue/Angular adapters",
+  "author": "dangminhkhoi2212",
   "license": "MIT",
-  "homepage": "https://github.com/author/library#readme",
+  "homepage": "https://github.com/dangminhkhoi2212/net-watch#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "git+https://github.com/dangminhkhoi2212/net-watch.git"
   },
   "bugs": {
-    "url": "https://github.com/author/library/issues"
+    "url": "https://github.com/dangminhkhoi2212/net-watch/issues"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -32,10 +32,6 @@
     "release": "bumpp",
     "prepublishOnly": "pnpm run build"
   },
-  "peerDependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
-  },
   "devDependencies": {
     "@tsconfig/strictest": "^2.0.8",
     "@types/node": "^26.1.1",
@@ -44,10 +40,30 @@
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/browser-playwright": "^4.1.10",
     "bumpp": "^11.1.0",
+    "playwright": "^1.64.0",
+    "react": ">=18",
+    "react-dom": "^19.3.0",
     "tsdown": "^0.22.5",
     "typescript": "^7.0.2",
     "vite": "^8.1.4",
     "vitest": "^4.1.10",
     "vitest-browser-react": "^2.2.0"
+  },
+  "sideEffects": false,
+  "peerDependencies": {
+    "@angular/core": ">=17",
+    "react": ">=18",
+    "vue": ">=3.3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    }
   }
 }
