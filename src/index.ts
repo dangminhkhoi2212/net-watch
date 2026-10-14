@@ -10,3 +10,5 @@ export type {
   WatcherOptions,
 } from './watcher'
 export { watchFetch } from './fetch'
+export { createBanner } from './banner'
+export type { BannerOptions } from './banner'
