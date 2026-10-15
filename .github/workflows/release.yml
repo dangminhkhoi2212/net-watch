@@ -1,0 +1,47 @@
+name: Release
+
+# develop → beta releases (the repo is in Changesets pre mode `beta`, see .changeset/pre.json)
+# main    → stable releases (after `changeset pre exit`, see docs/releasing.md)
+on:
+  push:
+    branches: [develop, main]
+
+# One release at a time per branch; never cancel a publish half-way.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Version PR or publish
+    # Forks cannot publish (no trusted publisher is configured for them).
+    if: github.repository == 'dangminhkhoi2212/net-watch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # push tags, create GitHub releases, push the version branch
+      pull-requests: write # open and update the "Version Packages" PR
+      id-token: write # npm trusted publishing (OIDC): no npm token is stored anywhere
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      # Trusted publishing needs npm >= 11.5.1.
+      - run: npm install -g npm@^11.5.1 && npm --version
+      - run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v2.1.2
+        with:
+          version-script: pnpm version-packages
+          publish-script: pnpm release # builds, then `changeset publish` (dist-tag `beta` while in pre mode)
+          commit-message: "chore: version packages"
+          pr-title: "${{ github.ref_name == 'develop' && 'chore: version packages (beta)' || 'chore: version packages' }}"
+          # PRs and pushes made with the default token do not trigger CI. Set the RELEASE_TOKEN secret
+          # (fine-grained PAT or GitHub App token: contents + pull requests write) so the Version PR gets its checks.
+          github-token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

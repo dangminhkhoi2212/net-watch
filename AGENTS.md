@@ -7,6 +7,7 @@ Network-status library: a zero-dependency TypeScript core (online/offline detect
 - **Core change** (watcher, probe, metrics, fetch wrapper, banner, state shape, options, browser APIs) → [docs/architecture.md](docs/architecture.md). It is the contract; code follows it.
 - **Adapter or integration** (React, Vue, Angular, any new framework, Capacitor, service worker, TanStack Query) → [docs/adapters.md](docs/adapters.md).
 - **Layout, build and conventions** → [docs/architecture.md#repository-layout](docs/architecture.md#repository-layout).
+- **Branches, versions, publishing to npm (gitflow, beta pre mode, CI/CD)** → [docs/releasing.md](docs/releasing.md).
 
 ## Invariants
 

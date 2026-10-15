@@ -143,4 +143,6 @@ pnpm version-packages  # apply the version bumps and changelogs
 pnpm release           # build + publish the versioned packages
 ```
 
+Releases run in CI (gitflow: `develop` ships betas, `main` ships stable releases): see [docs/releasing.md](docs/releasing.md).
+
 Layout and conventions: [docs/architecture.md](docs/architecture.md#repository-layout).

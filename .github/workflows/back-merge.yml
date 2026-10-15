@@ -1,0 +1,34 @@
+name: Back-merge
+
+# Gitflow: everything released on main must flow back into develop.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-pr:
+    name: Open main → develop PR
+    if: github.repository == 'dangminhkhoi2212/net-watch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Open the PR unless develop already has everything or one is open
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main"; exit 0
+          fi
+          if [ -n "$(gh pr list --base develop --head main --state open --json number --jq '.[0].number')" ]; then
+            echo "back-merge PR already open"; exit 0
+          fi
+          gh pr create --base develop --head main \
+            --title "chore: back-merge main into develop" \
+            --body "Brings the stable release from main back into develop. Merge with a merge commit, not squash. If main's release removed .changeset/pre.json, run \`pnpm changeset pre enter beta\` on develop afterwards (docs/releasing.md)."

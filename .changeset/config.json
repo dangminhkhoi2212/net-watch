@@ -4,7 +4,7 @@
   "commit": false,
   "fixed": [["@net-watch/core", "@net-watch/react", "@net-watch/vue", "@net-watch/angular"]],
   "access": "public",
-  "baseBranch": "main",
+  "baseBranch": "develop",
   "updateInternalDependencies": "patch",
   "ignore": ["@net-watch/example-vanilla", "@net-watch/example-react"]
 }

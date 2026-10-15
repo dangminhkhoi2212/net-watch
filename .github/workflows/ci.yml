@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, typecheck, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0 # pnpm version comes from "packageManager" in package.json
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Tests run in real chromium, firefox and webkit. The command also installs the OS libraries they need.
+      - run: pnpm --filter @net-watch/core exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  changeset:
+    name: Changeset present
+    # The release bot's own "Version Packages" PR consumes changesets, so it is exempt.
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # `changeset status --since` compares against the base branch
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fails when a published package changed without a changeset. PRs that touch no package (docs, CI) pass.
+      - run: pnpm changeset status --since="origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
