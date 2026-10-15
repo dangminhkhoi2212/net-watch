@@ -83,6 +83,34 @@ Install a beta: `pnpm add @net-watch/core@beta`.
 
 `repository.url` in every `package.json` must match the GitHub repository exactly (`git+https://github.com/dangminhkhoi2212/net-watch.git`); npm checks it at publish time.
 
+## Using an npm access token (bootstrap or fallback)
+
+Trusted publishing (above) is the intended way. A token is only for a first publish from CI or as a temporary fallback. npm creates granular tokens **on the website only** (no CLI, no config file): npmjs.com → profile picture → **Access Tokens** → **Generate New Token**.
+
+| Field | Value |
+|---|---|
+| Token name | `net-watch-ci` |
+| Description | `Publish @net-watch/* from GitHub Actions` |
+| Bypass two-factor authentication | **checked**: a CI job cannot answer an OTP prompt, and 2FA is on for the account |
+| Allowed IP ranges | leave empty (GitHub-hosted runners have changing addresses) |
+| Packages and scopes → Permissions | **Read and write (publish and stage)** |
+| Packages and scopes → select | **Only select packages and scopes** → scope `@net-watch` (or the four packages once they exist) |
+| Organizations → Permissions | No access (organization permissions cannot publish packages) |
+| Expiration | short, for example 7 days (npm only requires at least 1 day) |
+
+Copy the token right after it is generated; npm never shows it again. Then: GitHub → repository → Settings → Secrets and variables → Actions → New repository secret → name `NPM_TOKEN`.
+
+To make the release job use it, add to the `changesets/action` step in `.github/workflows/release.yml`:
+
+```yaml
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+`actions/setup-node` with `registry-url` already writes the `.npmrc` that reads `NODE_AUTH_TOKEN`. npm tries OIDC first when it is configured, so the token then acts as a fallback. Delete the secret and revoke the token as soon as trusted publishing works.
+
+Limits to know: npm announced that direct publishing with granular tokens is being removed in January 2027 (stage-only tokens and `npm stage publish` remain), and from August 2026 bypass-2FA tokens can no longer perform account-identity actions. Do not build a long-term pipeline on a token. Source: https://docs.npmjs.com/about-access-tokens
+
 ## Security notes
 
 - Every action in `.github/workflows/` is pinned to a full commit SHA with the version in a trailing comment; Dependabot (`.github/dependabot.yml`) opens weekly PRs against `develop` to bump them. Never replace a SHA by a tag.
