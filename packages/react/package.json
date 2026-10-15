@@ -1,0 +1,53 @@
+{
+  "name": "@net-watch/react",
+  "version": "0.0.0",
+  "description": "React hook for net-watch: useNetworkStatus()",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "author": "dangminhkhoi2212",
+  "homepage": "https://github.com/dangminhkhoi2212/net-watch#readme",
+  "bugs": "https://github.com/dangminhkhoi2212/net-watch/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dangminhkhoi2212/net-watch.git",
+    "directory": "packages/react"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": {
+    "@net-watch/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vitest-browser-react": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  }
+}

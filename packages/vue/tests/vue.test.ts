@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { effectScope } from 'vue'
-import { createNetworkWatcher, type NetworkWatcher } from '../src'
-import { useNetworkStatus } from '../src/vue'
+import { createNetworkWatcher, type NetworkWatcher } from '@net-watch/core'
+import { useNetworkStatus } from '../src/index'
 import { mockOnLine, setNetwork } from './helpers'
 
 let w: NetworkWatcher | undefined

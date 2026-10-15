@@ -1,0 +1,48 @@
+{
+  "name": "@net-watch/vue",
+  "version": "0.0.0",
+  "description": "Vue composable for net-watch: useNetworkStatus()",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "author": "dangminhkhoi2212",
+  "homepage": "https://github.com/dangminhkhoi2212/net-watch#readme",
+  "bugs": "https://github.com/dangminhkhoi2212/net-watch/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dangminhkhoi2212/net-watch.git",
+    "directory": "packages/vue"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": {
+    "@net-watch/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "vue": ">=3.3"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  }
+}

@@ -1,8 +1,8 @@
 import '@angular/compiler'
 import { Injector, runInInjectionContext } from '@angular/core'
 import { afterEach, expect, test, vi } from 'vitest'
-import { createNetworkWatcher, type NetworkWatcher } from '../src'
-import { injectNetworkStatus } from '../src/angular'
+import { createNetworkWatcher, type NetworkWatcher } from '@net-watch/core'
+import { injectNetworkStatus } from '../src/index'
 import { mockOnLine, setNetwork } from './helpers'
 
 let w: NetworkWatcher | undefined

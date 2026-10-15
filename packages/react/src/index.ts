@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { sharedWatcher, type NetworkState, type NetworkWatcher } from './index'
+import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 const SERVER_STATE: NetworkState = {
   online: true,

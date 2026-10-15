@@ -1,5 +1,5 @@
 import { computed, getCurrentScope, onScopeDispose, shallowRef, type ComputedRef } from 'vue'
-import { sharedWatcher, type NetworkState, type NetworkWatcher } from './index'
+import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): ComputedRef<NetworkState> {
   const state = shallowRef(watcher.getState())

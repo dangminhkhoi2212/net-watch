@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { createNetworkWatcher, type NetworkWatcher } from '../src'
-import { useNetworkStatus } from '../src/react'
+import { createNetworkWatcher, type NetworkWatcher } from '@net-watch/core'
+import { useNetworkStatus } from '../src/index'
 import { mockOnLine, setNetwork } from './helpers'
 
 function Status({ watcher }: { watcher: NetworkWatcher }) {
