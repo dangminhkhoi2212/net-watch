@@ -85,11 +85,11 @@ test('waitForOnline resolves immediately when online, or once back online', asyn
   await expect(wait).resolves.toMatchObject({ online: true })
 })
 
-test('report(true) wins over navigator.onLine === false', () => {
+test('report(true) is ignored while navigator.onLine is false', () => {
   mockOnLine(false)
   w = createNetworkWatcher()
   w.report(true)
-  expect(w.getState().online).toBe(true)
+  expect(w.getState().online).toBe(false)
 })
 
 test('report(false) is ignored without pingUrl', () => {

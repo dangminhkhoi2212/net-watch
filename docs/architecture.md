@@ -102,13 +102,13 @@ Renaming or removing anything in this section is a breaking change (major versio
 | Layer | Signal | Cost | Trust |
 |---|---|---|---|
 | 1 | `navigator.onLine` + `online` / `offline` events | 0 requests | `false` is reliable; `true` only means an interface is up |
-| 2 | Real app requests via `report()` / `watchFetch` | 0 extra requests | success proves online; a network error is only a suspicion |
+| 2 | Real app requests via `report()` / `watchFetch` | 0 extra requests | success proves online unless layer 1 says `false`; a network error is only a suspicion |
 | 3 | Probe: `HEAD pingUrl` | 1 request, only when needed | confirms or refutes |
 
 ### Rules
 
 1. `offline` event or `navigator.onLine === false` → **Offline** immediately, no probe.
-2. `report(true)` or a successful probe → **Online**, even if `navigator.onLine` says otherwise. Evidence beats the browser's flag.
+2. `report(true)` or a successful probe → **Online**, unless `navigator.onLine` is `false`. `navigator.onLine === false` always wins: a cache-backed response (service worker, HTTP cache) while the browser is offline is not proof of connectivity.
 3. **Suspect** → **Checking** (one probe). Suspects: `report(false)`, the `online` event, `visibilitychange` to visible, `pageshow` from the back/forward cache, startup.
 4. Without `pingUrl`, Checking resolves at once to `navigator.onLine`, and `report(false)` is ignored because nothing can confirm it.
 5. At most one probe in flight: `check()` during a probe returns the pending promise.

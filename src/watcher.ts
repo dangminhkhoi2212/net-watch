@@ -134,6 +134,8 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
   }
 
   const goOnline = (sample?: number) => {
+    // navigator.onLine === false is reliable: no success evidence (cache hit, stale probe) overrides it.
+    if (isBrowser && !navigator.onLine) return
     stopRetry()
     if (sample !== undefined) rttAvg = ewma(rttAvg, sample)
     update({ online: true, ...metrics(state.quality) })

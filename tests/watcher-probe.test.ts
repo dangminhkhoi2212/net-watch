@@ -143,6 +143,20 @@ test('report(true) while offline goes online and cancels retries', async () => {
   expect(fetchMock).toHaveBeenCalledOnce()
 })
 
+test('a probe that succeeds after an offline event does not mark the app online', async () => {
+  let resolveFetch!: (res: Response) => void
+  vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>((r) => (resolveFetch = r))))
+  const onOnline = vi.fn()
+  w = createNetworkWatcher({ pingUrl: '/ping', onOnline })
+  const pending = w.check()
+  setNetwork(false)
+  expect(w.getState().online).toBe(false)
+  resolveFetch(ok())
+  await expect(pending).resolves.toMatchObject({ online: false })
+  expect(w.getState().online).toBe(false)
+  expect(onOnline).not.toHaveBeenCalled()
+})
+
 test('destroy cancels pending retries', async () => {
   vi.useFakeTimers()
   const fetchMock = vi.fn().mockRejectedValue(networkError())
