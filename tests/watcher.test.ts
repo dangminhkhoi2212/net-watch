@@ -191,3 +191,24 @@ test('destroy stops listening and disconnects the throughput observer', () => {
 test('sharedWatcher returns one instance', () => {
   expect(sharedWatcher()).toBe(sharedWatcher())
 })
+
+test('a throwing listener does not stop later listeners or the offline retry', async () => {
+  vi.useFakeTimers()
+  const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+  vi.stubGlobal('fetch', fetchMock)
+  w = createNetworkWatcher({ pingUrl: '/ping' })
+  const second = vi.fn()
+  w.subscribe(() => {
+    throw new Error('boom')
+  })
+  w.subscribe(second)
+
+  await w.check()
+  expect(w.getState().online).toBe(false)
+  expect(second).toHaveBeenCalledOnce()
+
+  // The error resurfaces asynchronously; the retry timer still fires.
+  await expect(vi.advanceTimersByTimeAsync(2000)).rejects.toThrow('boom')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  vi.useRealTimers()
+})

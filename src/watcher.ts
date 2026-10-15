@@ -112,8 +112,19 @@ export function createNetworkWatcher(options: WatcherOptions = {}): NetworkWatch
     if (FIELDS.every((key) => next[key] === prev[key])) return
     if (next.online !== prev.online) next.since = Date.now()
     state = next
-    if (next.online !== prev.online) (next.online ? onOnline : onOffline)?.(next)
-    for (const listener of listeners) listener(next, prev)
+    // One throwing callback must not stop the others or the state machine; rethrow it out of band.
+    const safely = (fn: () => void) => {
+      try {
+        fn()
+      } catch (e) {
+        setTimeout(() => {
+          throw e
+        })
+      }
+    }
+    const hook = next.online ? onOnline : onOffline
+    if (hook && next.online !== prev.online) safely(() => hook(next))
+    for (const listener of listeners) safely(() => listener(next, prev))
   }
 
   const stopRetry = () => {

@@ -4,15 +4,23 @@ import type { NetworkWatcher } from './watcher'
 export function watchFetch(watcher: NetworkWatcher, baseFetch: typeof fetch = fetch): typeof fetch {
   return async (input, init) => {
     const start = performance.now()
+    let res: Response
     try {
-      const res = await baseFetch(input, init)
-      // fetch resolves at headers, so this is time-to-headers regardless of body size.
-      watcher.report(true, performance.now() - start)
-      return res
+      res = await baseFetch(input, init)
     } catch (err) {
       // Network failures are a TypeError in every engine; the message differs, so never match on it.
       if (err instanceof TypeError) watcher.report(false)
       throw err
     }
+    // fetch resolves at headers, so this is time-to-headers regardless of body size.
+    // Outside the try above: an error from report(true) is not a network failure and must not fail the request.
+    try {
+      watcher.report(true, performance.now() - start)
+    } catch (e) {
+      setTimeout(() => {
+        throw e
+      })
+    }
+    return res
   }
 }

@@ -44,3 +44,16 @@ test('passes input and init through', async () => {
   await watchFetch(watcher, base)('/api', init)
   expect(base).toHaveBeenCalledWith('/api', init)
 })
+
+test('a throwing report(true) does not turn a successful fetch into a failure', async () => {
+  const rethrow = vi.spyOn(globalThis, 'setTimeout').mockImplementation((() => 0) as never)
+  const report = vi.fn((ok: boolean) => {
+    if (ok) throw new TypeError('listener bug')
+  })
+  const res = new Response('ok')
+  const f = watchFetch({ report } as unknown as NetworkWatcher, vi.fn().mockResolvedValue(res))
+  await expect(f('/api')).resolves.toBe(res)
+  expect(report).not.toHaveBeenCalledWith(false)
+  expect(rethrow).toHaveBeenCalledOnce() // the listener error resurfaces out of band
+  rethrow.mockRestore()
+})
