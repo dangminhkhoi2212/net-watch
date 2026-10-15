@@ -1,6 +1,6 @@
 {
   "name": "@net-watch/core",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Is the user really online, and how good is the connection? Zero-dependency network status for the web.",
   "type": "module",
   "sideEffects": false,
