@@ -7,7 +7,7 @@ An adapter turns the core watcher into a framework's native reactive value. The 
 Every adapter, current or future (React, Vue, Angular, Svelte, Solid, Lit, …):
 
 1. Lives in a package of its own: `packages/<framework>`, name `@net-watch/<framework>`, source in `src/index.ts`.
-2. Imports from `@net-watch/core` only, and uses only `getState()`, `subscribe()` and `sharedWatcher()`.
+2. Imports only from `@net-watch/core` and its own framework, and uses only `getState()`, `subscribe()` and `sharedWatcher()`.
 3. Takes an optional `watcher` argument that defaults to `sharedWatcher()`, so users can pass a configured watcher.
 4. Returns the framework's read-only reactive value of the full `NetworkState`.
 5. Unsubscribes when the framework's owner is destroyed (component, scope, injector).
@@ -89,7 +89,7 @@ The Angular adapter is a plain function using `signal` and `DestroyRef`. It has 
 - [ ] `pnpm test` green on chromium, firefox and webkit; `pnpm typecheck` and `pnpm build` clean.
 - [ ] Package README with a usage section, plus a usage section in the root README, and a changeset (`pnpm changeset`).
 
-Test helpers live in `tests/helpers.ts`: `mockOnLine(online)` fakes `navigator.onLine`; `setNetwork(online)` also fires the matching window event.
+Tests live in `packages/<package>/tests/`, and each package has its own `tests/helpers.ts` (`mockOnLine(online)` fakes `navigator.onLine`; `setNetwork(online)` also fires the matching window event); adapters keep a small local copy on purpose, because importing helpers across packages would load a second copy of `vitest`.
 
 ## Integrations via `report()`
 

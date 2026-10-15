@@ -138,8 +138,9 @@ pnpm exec playwright install chromium firefox webkit
 pnpm test        # Vitest in Chromium, Firefox and WebKit
 pnpm build       # tsdown → each package's dist/
 pnpm typecheck   # packages and apps
-pnpm changeset   # describe a change to a published package
-pnpm release     # build + publish the versioned packages
+pnpm changeset         # describe a change to a published package
+pnpm version-packages  # apply the version bumps and changelogs
+pnpm release           # build + publish the versioned packages
 ```
 
 Layout and conventions: [docs/architecture.md](docs/architecture.md#repository-layout).

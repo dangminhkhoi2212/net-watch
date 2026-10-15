@@ -24,7 +24,7 @@ Every change keeps these. A change that needs to break one is a design change: u
 
 ## Definition of done
 
-- A failing test exists in `tests/` before the implementation, and passes after.
+- A failing test exists in `packages/<package>/tests/` before the implementation, and passes after.
 - `pnpm test` is green on chromium, firefox and webkit; `pnpm typecheck` and `pnpm build` are clean.
 - Each package's `exports` comes from its tsdown build; edit `tsdown.config.ts` entries, then rebuild.
 - `pnpm typecheck` covers packages and apps; `pnpm example:vanilla` / `pnpm example:react` run the apps.

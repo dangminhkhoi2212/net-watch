@@ -13,7 +13,7 @@ net-watch answers two questions:
 
 ## Repository layout
 
-A pnpm + Turborepo workspace of four published packages (the dnd-kit layout), ESM only. Versions come from one pnpm `catalog:` in `pnpm-workspace.yaml`.
+A pnpm + Turborepo workspace of four published packages (the dnd-kit layout), ESM only. Shared dev-tooling versions live in one pnpm `catalog:` (`pnpm-workspace.yaml`).
 
 ```
 net-watch/
@@ -35,15 +35,17 @@ net-watch/
 │   │   ├── src/banner/index.ts                             → "./banner"
 │   │   ├── tests/
 │   │   └── package.json tsdown.config.ts vitest.config.ts tsconfig.json README.md LICENSE
-│   ├── react/   @net-watch/react    src/index.ts  tests/
-│   ├── vue/     @net-watch/vue      src/index.ts  tests/
-│   └── angular/ @net-watch/angular  src/index.ts  tests/
+│   ├── react/   @net-watch/react    src/index.ts  tests/  tsconfig.json tsconfig.build.json
+│   ├── vue/     @net-watch/vue      src/index.ts  tests/  tsconfig.json tsconfig.build.json
+│   └── angular/ @net-watch/angular  src/index.ts  tests/  tsconfig.json tsconfig.build.json
 ├── apps/
 │   ├── demo-routes.ts           shared dev-server routes (/ping, /slow)
 │   ├── example-vanilla/
 │   └── example-react/
 └── docs/                        architecture.md adapters.md diagrams/
 ```
+
+Core has no `tsconfig.build.json`; each adapter has one so its build resolves `@net-watch/core` against core's `dist`.
 
 | Package | Entry point | Contents | Runtime deps |
 |---|---|---|---|
