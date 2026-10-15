@@ -17,16 +17,33 @@ export interface BannerOptions {
 
 type View = 'offline' | 'slow' | 'online'
 
-// :where() keeps specificity at 0, so any user rule on .netwatch-banner wins.
-// The [hidden] rule is deliberately plain and !important: an author `display` rule would otherwise defeat the hidden attribute.
+// Icons are CSS masks (stroke glyphs on a 24px grid), so they take the text colour and add no DOM nodes.
+const icon = (paths: string) =>
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E${paths}%3C/svg%3E")`
+const ICON_OFFLINE = icon("%3Cpath d='M3 9c5.2-4.6 12.8-4.6 18 0M6.5 12.8c3-2.6 8-2.6 11 0M12 18h.01M4 4l16 16'/%3E")
+const ICON_SLOW = icon("%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5h.01'/%3E")
+const ICON_ONLINE = icon("%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E")
+
+// Every colour is a --netwatch-* variable, so apps theme the banner with one rule on .netwatch-banner (or a state selector).
+// :where() keeps specificity at 0, so any user rule wins. The [hidden] rule is deliberately plain and !important:
+// an author `display` rule would otherwise defeat the hidden attribute.
 const CSS = `
 .netwatch-banner[hidden]{display:none!important}
-:where(.netwatch-banner){position:fixed;left:0;right:0;z-index:9999;padding:8px 16px;text-align:center;font:14px/1.4 system-ui,sans-serif;color:#fff}
-:where(.netwatch-banner[data-position=top]){top:0}
-:where(.netwatch-banner[data-position=bottom]){bottom:0}
-:where(.netwatch-banner[data-state=offline]){background:#c62828}
-:where(.netwatch-banner[data-state=slow]){background:#f9a825;color:#1a1a1a}
-:where(.netwatch-banner[data-state=online]){background:#2e7d32}
+:where(.netwatch-banner){position:fixed;left:16px;right:16px;z-index:9999;box-sizing:border-box;max-width:28rem;margin-inline:auto;display:flex;align-items:center;gap:10px;padding:10px 14px;border-left:3px solid var(--netwatch-accent);border-radius:8px;background:var(--netwatch-bg);color:var(--netwatch-fg);box-shadow:0 4px 16px rgb(0 0 0/.08);font:500 14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left;animation:netwatch-in .18s ease-out}
+:where(.netwatch-banner)::before{content:"";flex:none;width:18px;height:18px;background:currentColor;-webkit-mask:var(--netwatch-icon) center/contain no-repeat;mask:var(--netwatch-icon) center/contain no-repeat}
+:where(.netwatch-banner[data-position=top]){top:max(16px,env(safe-area-inset-top));--netwatch-shift:-6px}
+:where(.netwatch-banner[data-position=bottom]){bottom:max(16px,env(safe-area-inset-bottom));--netwatch-shift:6px}
+:where(.netwatch-banner[data-state=offline]){--netwatch-icon:${ICON_OFFLINE};--netwatch-bg:#fdeff3;--netwatch-fg:#b4234f;--netwatch-accent:#e0446d}
+:where(.netwatch-banner[data-state=slow]){--netwatch-icon:${ICON_SLOW};--netwatch-bg:#fff7e6;--netwatch-fg:#8a5a00;--netwatch-accent:#f5b301}
+:where(.netwatch-banner[data-state=online]){--netwatch-icon:${ICON_ONLINE};--netwatch-bg:#eefaf2;--netwatch-fg:#1a6b3c;--netwatch-accent:#2fb872}
+@media (prefers-color-scheme:dark){
+:where(.netwatch-banner){box-shadow:0 4px 16px rgb(0 0 0/.4)}
+:where(.netwatch-banner[data-state=offline]){--netwatch-bg:#2b1a21;--netwatch-fg:#ff7a9c;--netwatch-accent:#ef476f}
+:where(.netwatch-banner[data-state=slow]){--netwatch-bg:#2b2415;--netwatch-fg:#ffc83d;--netwatch-accent:#f5b301}
+:where(.netwatch-banner[data-state=online]){--netwatch-bg:#15271c;--netwatch-fg:#4ade80;--netwatch-accent:#34c77b}
+}
+@keyframes netwatch-in{from{opacity:0;transform:translateY(var(--netwatch-shift,6px))}}
+@media (prefers-reduced-motion:reduce){:where(.netwatch-banner){animation:none}}
 `
 
 export function createBanner(watcher: NetworkWatcher, options: BannerOptions = {}): { destroy: () => void } {

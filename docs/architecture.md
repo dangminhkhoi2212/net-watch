@@ -231,6 +231,8 @@ Tests run in Vitest browser mode on Playwright `chromium`, `firefox` and `webkit
 - Slow: shown while `quality === 'poor'`, only when `slowText` is set. Leaving `poor` hides it at once.
 - Back online: shown, then hidden after `hideAfter` ms (default 3000).
 - `role="status"`; `data-state` = `offline | slow | online`, `data-position` = `top | bottom`.
+- Look: a floating card (rounded, tinted background, coloured left border, icon, `max-width: 28rem`) with a light and a dark palette chosen by `prefers-color-scheme`. Icons are CSS masks, so the DOM stays one element holding the text.
+- Theming: colours are CSS variables on the banner: `--netwatch-bg`, `--netwatch-fg`, `--netwatch-accent`, `--netwatch-icon`. One rule overrides them, e.g. `.netwatch-banner[data-state=offline]{--netwatch-bg:#fff0f0}`.
 - Default CSS lives under `:where(.netwatch-banner…)`, so any user rule wins without `!important`.
 
 ## Out of scope until a real need appears

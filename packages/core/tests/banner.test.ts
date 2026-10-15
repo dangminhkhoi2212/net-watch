@@ -130,3 +130,18 @@ test('a hidden banner stays hidden even when an author rule sets display', () =>
     style.remove()
   }
 })
+
+test('colours are --netwatch-* variables that one author rule can override', () => {
+  const style = document.createElement('style')
+  style.textContent = '.netwatch-banner{--netwatch-bg:rgb(1, 2, 3);--netwatch-fg:rgb(4, 5, 6)}'
+  document.head.append(style)
+  try {
+    mockOnLine(false)
+    w = createNetworkWatcher()
+    banner = createBanner(w)
+    expect(getComputedStyle(el()).backgroundColor).toBe('rgb(1, 2, 3)')
+    expect(getComputedStyle(el()).color).toBe('rgb(4, 5, 6)')
+  } finally {
+    style.remove()
+  }
+})
