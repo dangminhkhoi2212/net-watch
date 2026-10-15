@@ -7,6 +7,8 @@ export interface BannerOptions {
   onlineText?: string
   /** Shown while quality is 'poor'. Unset = never show it. */
   slowText?: string
+  /** 'auto' follows prefers-color-scheme; 'light' / 'dark' force a palette. Default 'auto'. */
+  theme?: BannerTheme
   /** Default 'bottom'. */
   position?: 'top' | 'bottom'
   /** ms the back-online message stays visible. Default 3000. */
@@ -14,6 +16,8 @@ export interface BannerOptions {
   /** Default document.body. */
   container?: HTMLElement
 }
+
+export type BannerTheme = 'auto' | 'light' | 'dark'
 
 type View = 'offline' | 'slow' | 'online'
 
@@ -23,6 +27,12 @@ const icon = (paths: string) =>
 const ICON_OFFLINE = icon("%3Cpath d='M3 9c5.2-4.6 12.8-4.6 18 0M6.5 12.8c3-2.6 8-2.6 11 0M12 18h.01M4 4l16 16'/%3E")
 const ICON_SLOW = icon("%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5h.01'/%3E")
 const ICON_ONLINE = icon("%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E")
+
+// The dark palette is emitted twice: forced by data-theme=dark, and for data-theme=auto inside prefers-color-scheme.
+const darkPalette = (theme: string) => `:where(.netwatch-banner${theme}){box-shadow:0 4px 16px rgb(0 0 0/.4)}
+:where(.netwatch-banner${theme}[data-state=offline]){--netwatch-bg:#2b1a21;--netwatch-fg:#ff7a9c;--netwatch-accent:#ef476f}
+:where(.netwatch-banner${theme}[data-state=slow]){--netwatch-bg:#2b2415;--netwatch-fg:#ffc83d;--netwatch-accent:#f5b301}
+:where(.netwatch-banner${theme}[data-state=online]){--netwatch-bg:#15271c;--netwatch-fg:#4ade80;--netwatch-accent:#34c77b}`
 
 // Every colour is a --netwatch-* variable, so apps theme the banner with one rule on .netwatch-banner (or a state selector).
 // :where() keeps specificity at 0, so any user rule wins. The [hidden] rule is deliberately plain and !important:
@@ -36,21 +46,23 @@ const CSS = `
 :where(.netwatch-banner[data-state=offline]){--netwatch-icon:${ICON_OFFLINE};--netwatch-bg:#fdeff3;--netwatch-fg:#b4234f;--netwatch-accent:#e0446d}
 :where(.netwatch-banner[data-state=slow]){--netwatch-icon:${ICON_SLOW};--netwatch-bg:#fff7e6;--netwatch-fg:#8a5a00;--netwatch-accent:#f5b301}
 :where(.netwatch-banner[data-state=online]){--netwatch-icon:${ICON_ONLINE};--netwatch-bg:#eefaf2;--netwatch-fg:#1a6b3c;--netwatch-accent:#2fb872}
+${darkPalette('[data-theme=dark]')}
 @media (prefers-color-scheme:dark){
-:where(.netwatch-banner){box-shadow:0 4px 16px rgb(0 0 0/.4)}
-:where(.netwatch-banner[data-state=offline]){--netwatch-bg:#2b1a21;--netwatch-fg:#ff7a9c;--netwatch-accent:#ef476f}
-:where(.netwatch-banner[data-state=slow]){--netwatch-bg:#2b2415;--netwatch-fg:#ffc83d;--netwatch-accent:#f5b301}
-:where(.netwatch-banner[data-state=online]){--netwatch-bg:#15271c;--netwatch-fg:#4ade80;--netwatch-accent:#34c77b}
+${darkPalette('[data-theme=auto]')}
 }
 @keyframes netwatch-in{from{opacity:0;transform:translateY(var(--netwatch-shift,6px))}}
 @media (prefers-reduced-motion:reduce){:where(.netwatch-banner){animation:none}}
 `
 
-export function createBanner(watcher: NetworkWatcher, options: BannerOptions = {}): { destroy: () => void } {
+export function createBanner(
+  watcher: NetworkWatcher,
+  options: BannerOptions = {},
+): { destroy: () => void; setTheme: (theme: BannerTheme) => void } {
   const {
     offlineText = 'You are offline',
     onlineText = 'Back online',
     slowText,
+    theme = 'auto',
     position = 'bottom',
     hideAfter = 3000,
     container = document.body,
@@ -68,6 +80,7 @@ export function createBanner(watcher: NetworkWatcher, options: BannerOptions = {
   el.className = 'netwatch-banner'
   el.setAttribute('role', 'status')
   el.dataset['position'] = position
+  el.dataset['theme'] = theme
   el.hidden = true
   container.append(el)
 
@@ -100,6 +113,9 @@ export function createBanner(watcher: NetworkWatcher, options: BannerOptions = {
   if (initial !== 'online') show(initial)
 
   return {
+    setTheme(next) {
+      el.dataset['theme'] = next
+    },
     destroy() {
       off()
       clearTimeout(timer)

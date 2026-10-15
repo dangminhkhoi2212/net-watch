@@ -46,7 +46,14 @@ createBanner(watcher, { offlineText: 'You are offline', onlineText: 'Back online
 `quality` / `rtt` fed by `watchFetch` measure time-to-first-byte of your own requests, so a slow backend endpoint can read as `poor`.
 Wrap fetch with `watchFetch`; do not assign the result to `window.fetch` (probes would be double counted).
 
-The banner is a floating card with a light and a dark look (it follows `prefers-color-scheme`). Recolour it with CSS variables:
+The banner is a floating card with a light and a dark look. `theme` is `'auto'` (default, follows the system), `'light'` or `'dark'`, and `setTheme()` switches it later, for example from your own dark-mode toggle:
+
+```ts
+const banner = createBanner(watcher, { theme: 'auto' })
+banner.setTheme('dark') // 'auto' | 'light' | 'dark'
+```
+
+Recolour it with CSS variables:
 
 ```css
 .netwatch-banner[data-state='offline'] {

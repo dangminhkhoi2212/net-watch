@@ -4,7 +4,7 @@ import { createNetworkWatcher, type NetworkWatcher } from '../src/core/index'
 import { fakePerformanceObserver, mockConnection, mockOnLine, setNetwork } from './helpers'
 
 let w: NetworkWatcher | undefined
-let banner: { destroy: () => void } | undefined
+let banner: ReturnType<typeof createBanner> | undefined
 let restoreConnection: () => void
 const el = () => document.querySelector<HTMLElement>('.netwatch-banner')!
 
@@ -144,4 +144,39 @@ test('colours are --netwatch-* variables that one author rule can override', () 
   } finally {
     style.remove()
   }
+})
+
+const offlineBg = () => getComputedStyle(el()).backgroundColor
+
+test('theme defaults to auto and is exposed as data-theme', () => {
+  mockOnLine(false)
+  w = createNetworkWatcher()
+  banner = createBanner(w)
+  expect(el().dataset['theme']).toBe('auto')
+})
+
+test('theme light and dark force their palette whatever the system prefers', () => {
+  mockOnLine(false)
+  w = createNetworkWatcher()
+  banner = createBanner(w, { theme: 'light' })
+  expect(el().dataset['theme']).toBe('light')
+  expect(offlineBg()).toBe('rgb(253, 239, 243)')
+  banner.destroy()
+
+  banner = createBanner(w, { theme: 'dark' })
+  expect(offlineBg()).toBe('rgb(43, 26, 33)')
+})
+
+test('setTheme switches the palette while the banner is showing', () => {
+  mockOnLine(false)
+  w = createNetworkWatcher()
+  banner = createBanner(w, { theme: 'light' })
+  expect(offlineBg()).toBe('rgb(253, 239, 243)')
+
+  banner.setTheme('dark')
+  expect(el().dataset['theme']).toBe('dark')
+  expect(offlineBg()).toBe('rgb(43, 26, 33)')
+
+  banner.setTheme('light')
+  expect(offlineBg()).toBe('rgb(253, 239, 243)')
 })

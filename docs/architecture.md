@@ -123,7 +123,7 @@ interface NetworkWatcher {
 createNetworkWatcher(options?: WatcherOptions): NetworkWatcher
 sharedWatcher(): NetworkWatcher                                    // lazy default instance for adapters (from '@net-watch/core')
 watchFetch(watcher: NetworkWatcher, baseFetch?: typeof fetch): typeof fetch   // from '@net-watch/core/fetch'
-createBanner(watcher: NetworkWatcher, options?: BannerOptions): { destroy(): void } // from '@net-watch/core/banner'
+createBanner(watcher: NetworkWatcher, options?: BannerOptions): { destroy(): void; setTheme(theme: BannerTheme): void } // from '@net-watch/core/banner'
 ```
 
 State rules:
@@ -225,13 +225,13 @@ Tests run in Vitest browser mode on Playwright `chromium`, `firefox` and `webkit
 
 ## Banner
 
-`createBanner(watcher, { offlineText, onlineText, slowText?, position, hideAfter, container })`
+`createBanner(watcher, { offlineText, onlineText, slowText?, theme, position, hideAfter, container })`
 
 - Offline: stays visible until back online.
 - Slow: shown while `quality === 'poor'`, only when `slowText` is set. Leaving `poor` hides it at once.
 - Back online: shown, then hidden after `hideAfter` ms (default 3000).
-- `role="status"`; `data-state` = `offline | slow | online`, `data-position` = `top | bottom`.
-- Look: a floating card (rounded, tinted background, coloured left border, icon, `max-width: 28rem`) with a light and a dark palette chosen by `prefers-color-scheme`. Icons are CSS masks, so the DOM stays one element holding the text.
+- `role="status"`; `data-state` = `offline | slow | online`, `data-theme` = `auto | light | dark`, `data-position` = `top | bottom`.
+- Look: a floating card (rounded, tinted background, coloured left border, icon, `max-width: 28rem`) with a light and a dark palette. `theme` is `'auto'` (default: follows `prefers-color-scheme`), `'light'` or `'dark'` (forced); `setTheme()` on the returned handle switches it at runtime, for apps with their own theme toggle. The value is exposed as `data-theme`. Icons are CSS masks, so the DOM stays one element holding the text.
 - Theming: colours are CSS variables on the banner: `--netwatch-bg`, `--netwatch-fg`, `--netwatch-accent`, `--netwatch-icon`. One rule overrides them, e.g. `.netwatch-banner[data-state=offline]{--netwatch-bg:#fff0f0}`.
 - Default CSS lives under `:where(.netwatch-banner…)`, so any user rule wins without `!important`.
 
