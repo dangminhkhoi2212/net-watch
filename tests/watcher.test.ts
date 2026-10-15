@@ -16,6 +16,7 @@ afterEach(() => {
   restoreConnection()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 test('initial state follows navigator.onLine, with every metric unknown', () => {
@@ -210,5 +211,4 @@ test('a throwing listener does not stop later listeners or the offline retry', a
   // The error resurfaces asynchronously; the retry timer still fires.
   await expect(vi.advanceTimersByTimeAsync(2000)).rejects.toThrow('boom')
   expect(fetchMock).toHaveBeenCalledTimes(2)
-  vi.useRealTimers()
 })

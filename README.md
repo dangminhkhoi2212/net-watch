@@ -50,7 +50,7 @@ A value the browser cannot provide is `undefined`, never a guess. Signal strengt
 ### How detection works
 
 1. **Browser signals**: `navigator.onLine`, the `online`/`offline` events, tab visible, bfcache restore. Free and instant, but `online: true` only means a network interface is up.
-2. **Real requests** through `watchFetch` (or `watcher.report(ok, rtt)`). A response proves you are online and measures latency.
+2. **Real requests** through `watchFetch` (or `watcher.report(ok, rtt)`). A response proves you are online (unless the browser reports offline) and measures latency.
 3. **A probe to `pingUrl`**, sent only on suspicion or while offline (backoff 2 s → 30 s), plus every `heartbeat` ms if you opt in. Without `heartbeat`, online and idle sends nothing.
 
 Without `pingUrl` you get layers 1–2: unplugged cables and Wi-Fi off are detected, but "connected but no internet" is not.

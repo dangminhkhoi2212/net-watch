@@ -13,14 +13,8 @@ export function watchFetch(watcher: NetworkWatcher, baseFetch: typeof fetch = fe
       throw err
     }
     // fetch resolves at headers, so this is time-to-headers regardless of body size.
-    // Outside the try above: an error from report(true) is not a network failure and must not fail the request.
-    try {
-      watcher.report(true, performance.now() - start)
-    } catch (e) {
-      setTimeout(() => {
-        throw e
-      })
-    }
+    // Outside the try above: report(true) is not a network failure (listener errors are isolated by the watcher).
+    watcher.report(true, performance.now() - start)
     return res
   }
 }
