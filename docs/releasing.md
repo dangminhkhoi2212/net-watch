@@ -83,6 +83,12 @@ Install a beta: `pnpm add @net-watch/core@beta`.
 
 `repository.url` in every `package.json` must match the GitHub repository exactly (`git+https://github.com/dangminhkhoi2212/net-watch.git`); npm checks it at publish time.
 
+## Security notes
+
+- Every action in `.github/workflows/` is pinned to a full commit SHA with the version in a trailing comment; Dependabot (`.github/dependabot.yml`) opens weekly PRs against `develop` to bump them. Never replace a SHA by a tag.
+- The release job holds `id-token: write` (OIDC for npm) next to the version-PR logic, because `changesets/action` does both in one step. What limits the blast radius: it only runs on pushes to `develop` / `main`, only in `dangminhkhoi2212/net-watch`, and npm accepts the OIDC token only from the workflow file configured as the trusted publisher.
+- Optional gate: create a GitHub environment (for example `npm-release`) with required reviewers, add `environment: npm-release` to the release job, and put the same name in each package's trusted-publisher form. Every publish then waits for your approval.
+
 ## Troubleshooting
 
 - **`E404` or `403` on publish although the package exists**: the OIDC match failed. Check the workflow filename, repository, `repository.url`, that the job has `id-token: write`, that npm is 11.5.1 or newer (the workflow upgrades it), and that no `NPM_TOKEN` is set. npm does not validate the trusted-publisher form when you save it, so mistakes only show up at publish time.
