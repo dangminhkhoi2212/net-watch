@@ -1,8 +1,9 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Base",
   "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
     "target": "esnext",
-    "jsx": "react-jsx",
     "lib": ["es2023", "DOM"],
     "moduleDetection": "force",
     "module": "preserve",
@@ -14,9 +15,9 @@
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "net-watch": ["./src/index.ts"],
-      "net-watch/react": ["./src/react.ts"]
+      "@net-watch/core": ["../../packages/core/src/core/index.ts"],
+      "@net-watch/core/*": ["../../packages/core/src/*/index.ts"]
     }
   },
-  "include": ["src", "examples"]
+  "exclude": ["node_modules", "dist"]
 }

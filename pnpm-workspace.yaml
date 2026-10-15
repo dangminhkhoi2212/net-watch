@@ -1,0 +1,23 @@
+packages:
+  - packages/*
+  - apps/*
+
+# One place for every shared version; packages reference them as `catalog:`.
+catalog:
+  '@angular/compiler': ^22.2.2
+  '@angular/core': ^22.2.2
+  '@tsconfig/strictest': ^2.0.8
+  '@types/react': ^19.2.17
+  '@types/react-dom': ^19.2.3
+  '@vitejs/plugin-react': ^6.0.3
+  '@vitest/browser-playwright': ^4.1.10
+  playwright: ^1.64.0
+  react: ^19.3.0
+  react-dom: ^19.3.0
+  rxjs: ^7.8.2
+  tsdown: ^0.22.5
+  typescript: ^7.0.2
+  vite: ^8.1.4
+  vitest: ^4.1.10
+  vitest-browser-react: ^2.2.0
+  vue: ^3.5.43

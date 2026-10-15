@@ -1,78 +1,25 @@
 {
-  "name": "net-watch",
+  "name": "net-watch-monorepo",
+  "private": true,
   "type": "module",
-  "version": "0.0.0",
-  "description": "Is the user really online, and how good is the connection? Zero-dependency core with React/Vue/Angular adapters",
-  "author": "dangminhkhoi2212",
-  "license": "MIT",
-  "homepage": "https://github.com/dangminhkhoi2212/net-watch#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dangminhkhoi2212/net-watch.git"
-  },
-  "bugs": {
-    "url": "https://github.com/dangminhkhoi2212/net-watch/issues"
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./angular": "./dist/angular.js",
-    "./react": "./dist/react.js",
-    "./vue": "./dist/vue.js",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "play": "vite",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit",
-    "release": "bumpp",
-    "prepublishOnly": "pnpm run build",
-    "example:vanilla": "vite examples/vanilla",
-    "example:react": "vite examples/react"
+    "build": "turbo run build",
+    "dev": "turbo run dev --concurrency 20",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "example:vanilla": "pnpm --filter @net-watch/example-vanilla dev",
+    "example:react": "pnpm --filter @net-watch/example-react dev",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
-    "@angular/compiler": "^22.2.2",
-    "@angular/core": "^22.2.2",
-    "@tsconfig/strictest": "^2.0.8",
-    "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/browser-playwright": "^4.1.10",
-    "bumpp": "^11.1.0",
-    "playwright": "^1.64.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "rxjs": "^7.8.2",
-    "tsdown": "^0.22.5",
-    "typescript": "^7.0.2",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10",
-    "vitest-browser-react": "^2.2.0",
-    "vue": "^3.5.43"
-  },
-  "sideEffects": false,
-  "peerDependencies": {
-    "@angular/core": ">=17",
-    "react": ">=18",
-    "vue": ">=3.3"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    },
-    "vue": {
-      "optional": true
-    },
-    "@angular/core": {
-      "optional": true
-    }
+    "@changesets/cli": "^3.0.3",
+    "@tsconfig/strictest": "catalog:",
+    "turbo": "^2.11.8",
+    "typescript": "catalog:",
+    "vite": "catalog:"
   }
 }

@@ -1,4 +1,4 @@
-import type { NetworkListener, NetworkState, NetworkWatcher } from './watcher'
+import type { NetworkListener, NetworkState, NetworkWatcher } from '../core/index'
 
 export interface BannerOptions {
   /** Default 'You are offline'. */

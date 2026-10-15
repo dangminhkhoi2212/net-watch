@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { createNetworkWatcher, sharedWatcher, type NetworkWatcher } from '../src'
+import { createNetworkWatcher, sharedWatcher, type NetworkWatcher } from '../src/core/index'
 import { fakeConnection, fakePerformanceObserver, mockConnection, mockOnLine, setNetwork } from './helpers'
 
 let w: NetworkWatcher | undefined

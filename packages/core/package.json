@@ -1,0 +1,43 @@
+{
+  "name": "@net-watch/core",
+  "version": "0.0.0",
+  "description": "Is the user really online, and how good is the connection? Zero-dependency network status for the web.",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "author": "dangminhkhoi2212",
+  "homepage": "https://github.com/dangminhkhoi2212/net-watch#readme",
+  "bugs": "https://github.com/dangminhkhoi2212/net-watch/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dangminhkhoi2212/net-watch.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./banner": "./dist/banner.js",
+    "./fetch": "./dist/fetch.js",
+    "./package.json": "./package.json"
+  }
+}

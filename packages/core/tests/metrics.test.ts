@@ -8,7 +8,7 @@ import {
   roundRtt,
   throughputOf,
   type RttBounds,
-} from '../src/metrics'
+} from '../src/core/metrics'
 import { fakeConnection, fakePerformanceObserver, mockConnection } from './helpers'
 
 const BOUNDS: RttBounds = [150, 400, 1400]

@@ -1,4 +1,4 @@
-import type { NetworkWatcher } from './watcher'
+import type { NetworkWatcher } from '../core/index'
 
 /** Wraps fetch so real requests feed the watcher: responses prove online, network errors raise suspicion. */
 export function watchFetch(watcher: NetworkWatcher, baseFetch: typeof fetch = fetch): typeof fetch {

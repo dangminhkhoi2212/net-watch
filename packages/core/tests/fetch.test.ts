@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest'
-import { createNetworkWatcher, watchFetch, type NetworkWatcher } from '../src'
+import { createNetworkWatcher, type NetworkWatcher } from '../src/core/index'
+import { watchFetch } from '../src/fetch/index'
 import { fakePerformanceObserver, mockConnection, mockOnLine } from './helpers'
 
 const fakeWatcher = () => {

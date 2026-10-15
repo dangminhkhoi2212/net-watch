@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/react.ts', 'src/vue.ts', 'src/angular.ts'],
+  entry: { index: 'src/core/index.ts', fetch: 'src/fetch/index.ts', banner: 'src/banner/index.ts' },
   platform: 'neutral',
   target: 'es2020',
   dts: true,

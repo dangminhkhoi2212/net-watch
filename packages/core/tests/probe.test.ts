@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { probe } from '../src/probe'
+import { probe } from '../src/core/probe'
 
 afterEach(() => {
   vi.unstubAllGlobals()
