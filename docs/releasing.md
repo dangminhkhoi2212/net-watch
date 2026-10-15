@@ -1,5 +1,7 @@
 # Releasing
 
+> **Planned change:** the release flow is moving from gitflow to the dnd-kit trunk-based flow. Steps: [migrating-to-trunk-flow.md](migrating-to-trunk-flow.md). This document describes the flow in use until that migration is done.
+
 net-watch follows gitflow. Versions come from [Changesets](https://github.com/changesets/changesets); publishing to npm runs in GitHub Actions through npm **trusted publishing (OIDC)**, so there is no npm token to store, and it works with two-factor authentication turned on.
 
 The four published packages (`@net-watch/core`, `react`, `vue`, `angular`) are a fixed group: they always get the same version. While the repo is in **pre mode** (`.changeset/pre.json`, tag `beta`) every release is a `x.y.z-beta.N` published under the npm dist-tag `beta`.
