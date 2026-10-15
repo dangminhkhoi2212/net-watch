@@ -23,6 +23,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
+          # Until the develop branch exists there is nothing to merge into.
+          if ! git ls-remote --exit-code --heads origin develop >/dev/null; then
+            echo "no develop branch yet, skipping"; exit 0
+          fi
           if git merge-base --is-ancestor origin/main origin/develop; then
             echo "develop already contains main"; exit 0
           fi
