@@ -18,7 +18,9 @@ export interface BannerOptions {
 type View = 'offline' | 'slow' | 'online'
 
 // :where() keeps specificity at 0, so any user rule on .netwatch-banner wins.
+// The [hidden] rule is deliberately plain and !important: an author `display` rule would otherwise defeat the hidden attribute.
 const CSS = `
+.netwatch-banner[hidden]{display:none!important}
 :where(.netwatch-banner){position:fixed;left:0;right:0;z-index:9999;padding:8px 16px;text-align:center;font:14px/1.4 system-ui,sans-serif;color:#fff}
 :where(.netwatch-banner[data-position=top]){top:0}
 :where(.netwatch-banner[data-position=bottom]){bottom:0}

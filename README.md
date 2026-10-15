@@ -26,8 +26,11 @@ const watcher = createNetworkWatcher({
 watcher.subscribe((state) => console.log(state.online, state.quality, state.rtt))
 export const api = watchFetch(watcher) // use instead of fetch: real requests become free signals
 await watcher.waitForOnline() // e.g. before retrying
-createBanner(watcher, { offlineText: 'Mất kết nối mạng', onlineText: 'Đã kết nối lại', slowText: 'Mạng chậm' })
+createBanner(watcher, { offlineText: 'You are offline', onlineText: 'Back online', slowText: 'Slow connection' })
 ```
+
+`quality` / `rtt` fed by `watchFetch` measure time-to-first-byte of your own requests, so a slow backend endpoint can read as `poor`.
+Wrap fetch with `watchFetch`; do not assign the result to `window.fetch` (probes would be double counted).
 
 ### State
 
@@ -81,6 +84,8 @@ const { online, quality, rtt } = useNetworkStatus() // or useNetworkStatus(watch
 import { useNetworkStatus } from 'net-watch/vue'
 const status = useNetworkStatus() // status.value.online
 ```
+
+Called outside a component or effect scope, `useNetworkStatus` never unsubscribes.
 
 ## Angular
 

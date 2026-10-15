@@ -14,6 +14,8 @@ Every adapter, current or future (React, Vue, Angular, Svelte, Solid, Lit, …):
 6. Is SSR-safe: React passes a server snapshot; other frameworks read `getState()`, which is SSR-safe in core.
 7. Holds no detection logic. If an adapter needs a new behaviour, add it to core first, then use it.
 
+Vue and Angular read `getState()` on first render, so on Chromium (where the browser exposes connection metrics at creation) the first client render can differ from the server render. Use the same watcher state on both sides, or render quality-dependent UI after mount.
+
 Size target: about 10 lines. A longer adapter is a signal that logic belongs in core.
 
 ## Reference implementations

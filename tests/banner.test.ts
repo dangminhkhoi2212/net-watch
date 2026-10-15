@@ -115,3 +115,17 @@ test('destroy removes the element and stops updating', () => {
   setNetwork(false)
   expect(document.querySelector('.netwatch-banner')).toBeNull()
 })
+
+test('a hidden banner stays hidden even when an author rule sets display', () => {
+  const style = document.createElement('style')
+  style.textContent = '.netwatch-banner{display:flex}'
+  document.head.append(style)
+  try {
+    w = createNetworkWatcher()
+    banner = createBanner(w)
+    expect(el().hidden).toBe(true)
+    expect(getComputedStyle(el()).display).toBe('none')
+  } finally {
+    style.remove()
+  }
+})
