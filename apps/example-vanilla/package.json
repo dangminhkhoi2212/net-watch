@@ -1,0 +1,14 @@
+{
+  "name": "@net-watch/example-vanilla",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": { "@net-watch/core": "workspace:*" },
+  "devDependencies": { "typescript": "catalog:", "vite": "catalog:" }
+}

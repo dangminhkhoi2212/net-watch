@@ -1,4 +1,6 @@
-import { createBanner, createNetworkWatcher, watchFetch, type NetworkState } from 'net-watch'
+import { createBanner } from '@net-watch/core/banner'
+import { watchFetch } from '@net-watch/core/fetch'
+import { createNetworkWatcher, type NetworkState } from '@net-watch/core'
 
 const watcher = createNetworkWatcher({
   pingUrl: '/ping', // confirm real internet access, only when there is a reason to doubt it

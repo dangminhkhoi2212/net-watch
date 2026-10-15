@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
-import { createBanner, createNetworkWatcher, watchFetch } from 'net-watch'
-import { useNetworkStatus } from 'net-watch/react'
+import { createNetworkWatcher } from '@net-watch/core'
+import { createBanner } from '@net-watch/core/banner'
+import { watchFetch } from '@net-watch/core/fetch'
+import { useNetworkStatus } from '@net-watch/react'
 
 // Create the watcher once, outside components, and pass it to the hook.
 const watcher = createNetworkWatcher({
