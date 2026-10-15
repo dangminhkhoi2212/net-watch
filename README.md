@@ -102,6 +102,18 @@ More docs:
 - Integrations (Capacitor, service worker, TanStack Query) and writing new adapters: [docs/adapters.md](docs/adapters.md).
 - How it works inside: [docs/architecture.md](docs/architecture.md).
 
+## Examples
+
+Runnable apps in [examples/](examples/), each with a live state table, a request button and a slow-request button (it makes `quality` drop so you can see the banner):
+
+```bash
+pnpm install
+pnpm example:vanilla   # core only: watcher, watchFetch, banner
+pnpm example:react     # useNetworkStatus + banner
+```
+
+To go offline, use DevTools → Network → Offline. The dev server provides the `/ping` endpoint the examples use as `pingUrl`. The examples import `net-watch` as a real app would; Vite resolves it to the repo source, so no build is needed. Vue and Angular follow the same pattern: see [Vue](#vue) and [Angular](#angular) above.
+
 ## Development
 
 ```bash

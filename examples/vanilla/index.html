@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>net-watch · vanilla JS</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+      pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; }
+      button { font: inherit; padding: 0.4rem 0.8rem; }
+    </style>
+  </head>
+  <body>
+    <h1>net-watch · vanilla JS</h1>
+    <pre id="state"></pre>
+    <p>
+      <button id="fast" type="button">Send request</button>
+      <button id="slow" type="button">Send slow request (3 s)</button>
+    </p>
+    <ul>
+      <li>Offline: DevTools → Network → Offline. The red banner appears; switch back for "Back online".</li>
+      <li>Slow: click the slow request twice. <code>quality</code> turns <code>poor</code> and the yellow banner appears; a few fast requests bring it back.</li>
+      <li>Fields marked <code>unknown</code> are not exposed by this browser (Chromium-only or needs a large download).</li>
+    </ul>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

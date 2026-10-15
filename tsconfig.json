@@ -11,7 +11,12 @@
     "types": [],
     "declaration": true,
     "emitDeclarationOnly": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "net-watch": ["./src/index.ts"],
+      "net-watch/react": ["./src/react.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "examples"]
 }

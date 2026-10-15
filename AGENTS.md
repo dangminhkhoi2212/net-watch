@@ -26,4 +26,5 @@ Every change keeps these. A change that needs to break one is a design change: u
 - A failing test exists in `tests/` before the implementation, and passes after.
 - `pnpm vitest run` is green on chromium, firefox and webkit; `pnpm typecheck` and `pnpm build` are clean.
 - Package `exports` comes from the tsdown build (`exports: true`); edit `tsdown.config.ts` entries, then rebuild.
+- A change to the public API keeps `examples/` compiling: `pnpm typecheck` covers them, and `pnpm example:vanilla` / `pnpm example:react` run them.
 - When behaviour or the public API changes, the docs and diagrams change with it. Diagram sources are `docs/diagrams/*.html`; re-export the `.svg` beside each with the diagram-design export script.
