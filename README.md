@@ -8,13 +8,27 @@ Answers two questions for any web app:
 Zero-dependency core, thin adapters for React, Vue and Angular. Works in Chrome/Edge 90+, Firefox 90+ and Safari/iOS 15+.
 
 ```bash
-pnpm add net-watch
+pnpm add @net-watch/core                    # core
+pnpm add @net-watch/core @net-watch/react   # React (same for vue / angular)
 ```
+
+## Packages
+
+| Package | Purpose |
+|---|---|
+| [`@net-watch/core`](packages/core) | Watcher, `watchFetch` (`/fetch`) and offline banner (`/banner`). Zero dependencies. |
+| [`@net-watch/react`](packages/react) | `useNetworkStatus()` hook |
+| [`@net-watch/vue`](packages/vue) | `useNetworkStatus()` composable |
+| [`@net-watch/angular`](packages/angular) | `injectNetworkStatus()` signal |
+
+All four share one version. Each adapter depends on `@net-watch/core` and has its framework as a peer dependency.
 
 ## Core
 
 ```ts
-import { createBanner, createNetworkWatcher, watchFetch } from 'net-watch'
+import { createNetworkWatcher } from '@net-watch/core'
+import { watchFetch } from '@net-watch/core/fetch'
+import { createBanner } from '@net-watch/core/banner'
 
 const watcher = createNetworkWatcher({
   pingUrl: '/ping', // optional, see below
@@ -74,14 +88,14 @@ No backend? `https://www.gstatic.com/generate_204` works, with three caveats:
 ## React
 
 ```tsx
-import { useNetworkStatus } from 'net-watch/react'
+import { useNetworkStatus } from '@net-watch/react'
 const { online, quality, rtt } = useNetworkStatus() // or useNetworkStatus(watcher)
 ```
 
 ## Vue
 
 ```ts
-import { useNetworkStatus } from 'net-watch/vue'
+import { useNetworkStatus } from '@net-watch/vue'
 const status = useNetworkStatus() // status.value.online
 ```
 
@@ -90,7 +104,7 @@ Called outside a component or effect scope, `useNetworkStatus` never unsubscribe
 ## Angular
 
 ```ts
-import { injectNetworkStatus } from 'net-watch/angular'
+import { injectNetworkStatus } from '@net-watch/angular'
 export class AppComponent {
   status = injectNetworkStatus() // status().online
 }
@@ -104,7 +118,7 @@ More docs:
 
 ## Examples
 
-Runnable apps in [examples/](examples/), each with a live state table, a request button and a slow-request button (it makes `quality` drop so you can see the banner):
+Runnable apps in [apps/](apps/), each with a live state table, a request button and a slow-request button (it makes `quality` drop so you can see the banner):
 
 ```bash
 pnpm install
@@ -112,7 +126,9 @@ pnpm example:vanilla   # core only: watcher, watchFetch, banner
 pnpm example:react     # useNetworkStatus + banner
 ```
 
-To go offline, use DevTools → Network → Offline. The dev server provides the `/ping` endpoint the examples use as `pingUrl`. The examples import `net-watch` as a real app would; Vite resolves it to the repo source, so no build is needed. Vue and Angular follow the same pattern: see [Vue](#vue) and [Angular](#angular) above.
+For a custom port: `pnpm --filter @net-watch/example-vanilla dev --port 5601`.
+
+To go offline, use DevTools → Network → Offline. The dev server provides the `/ping` endpoint the examples use as `pingUrl`. The apps import `@net-watch/*` as a real app would; Vite resolves them to the repo source, so no build is needed. Vue and Angular follow the same pattern: see [Vue](#vue) and [Angular](#angular) above.
 
 ## Development
 
@@ -120,7 +136,10 @@ To go offline, use DevTools → Network → Offline. The dev server provides the
 pnpm install
 pnpm exec playwright install chromium firefox webkit
 pnpm test        # Vitest in Chromium, Firefox and WebKit
-pnpm play        # playground
-pnpm build       # tsdown → dist/
-pnpm release     # bumpp version + tag
+pnpm build       # tsdown → each package's dist/
+pnpm typecheck   # packages and apps
+pnpm changeset   # describe a change to a published package
+pnpm release     # build + publish the versioned packages
 ```
+
+Layout and conventions: [docs/architecture.md](docs/architecture.md#repository-layout).

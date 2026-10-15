@@ -6,8 +6,8 @@ An adapter turns the core watcher into a framework's native reactive value. The 
 
 Every adapter, current or future (React, Vue, Angular, Svelte, Solid, Lit, …):
 
-1. Lives in `src/<framework>.ts` and is exported as `net-watch/<framework>`.
-2. Imports from `./index` only, and uses only `getState()`, `subscribe()` and `sharedWatcher()`.
+1. Lives in a package of its own: `packages/<framework>`, name `@net-watch/<framework>`, source in `src/index.ts`.
+2. Imports from `@net-watch/core` only, and uses only `getState()`, `subscribe()` and `sharedWatcher()`.
 3. Takes an optional `watcher` argument that defaults to `sharedWatcher()`, so users can pass a configured watcher.
 4. Returns the framework's read-only reactive value of the full `NetworkState`.
 5. Unsubscribes when the framework's owner is destroyed (component, scope, injector).
@@ -20,11 +20,11 @@ Size target: about 10 lines. A longer adapter is a signal that logic belongs in 
 
 ## Reference implementations
 
-### React: `src/react.ts`
+### React: `packages/react/src/index.ts`
 
 ```ts
 import { useSyncExternalStore } from 'react'
-import { sharedWatcher, type NetworkState, type NetworkWatcher } from './index'
+import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 const SERVER_STATE: NetworkState = {
   online: true,
@@ -44,11 +44,11 @@ export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): Net
 
 `getState` and `subscribe` are plain closures in core, so they are passed unbound. The stable state reference is what keeps `useSyncExternalStore` from looping.
 
-### Vue: `src/vue.ts`
+### Vue: `packages/vue/src/index.ts`
 
 ```ts
 import { computed, getCurrentScope, onScopeDispose, shallowRef, type ComputedRef } from 'vue'
-import { sharedWatcher, type NetworkState, type NetworkWatcher } from './index'
+import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): ComputedRef<NetworkState> {
   const state = shallowRef(watcher.getState())
@@ -60,11 +60,11 @@ export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): Com
 }
 ```
 
-### Angular: `src/angular.ts`
+### Angular: `packages/angular/src/index.ts`
 
 ```ts
 import { DestroyRef, inject, signal, type Signal } from '@angular/core'
-import { sharedWatcher, type NetworkState, type NetworkWatcher } from './index'
+import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 /** Call in an injection context (constructor or field initializer). */
 export function injectNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): Signal<NetworkState> {
@@ -79,23 +79,29 @@ The Angular adapter is a plain function using `signal` and `DestroyRef`. It has 
 
 ## Adding a new adapter: checklist
 
-- [ ] Failing test first in `tests/<framework>.test.ts(x)`. It covers: the initial value, an update after `setNetwork(false)`, and no further updates after the owner is destroyed.
-- [ ] `src/<framework>.ts` following the contract above.
-- [ ] Entry added to `tsdown.config.ts` `entry`. Run `pnpm build`; tsdown regenerates `exports` in package.json.
-- [ ] Framework added to `peerDependencies` **and** `peerDependenciesMeta.<name>.optional = true`, plus `devDependencies` for tests.
-- [ ] `pnpm vitest run` green on chromium, firefox and webkit; `pnpm typecheck` clean.
-- [ ] Usage section in README.
+- [ ] Create `packages/<framework>` by copying `packages/react` as the template: `package.json`, `tsdown.config.ts`, `vitest.config.ts`, `tsconfig.json` (and `tsconfig.build.json`), README, LICENSE, `tests/helpers.ts`.
+- [ ] Failing test first in `packages/<framework>/tests/<framework>.test.ts(x)`. It covers: the initial value, an update after `setNetwork(false)`, and no further updates after the owner is destroyed.
+- [ ] `src/index.ts` following the contract above, importing from `@net-watch/core`.
+- [ ] `package.json`: name `@net-watch/<framework>`, `@net-watch/core` as `workspace:^` dependency, the framework as a **required** peer in `peerDependencies`, and as a `catalog:` devDependency for tests. Run `pnpm build`; tsdown regenerates `exports`.
+- [ ] Add a `catalog:` entry for the framework in `pnpm-workspace.yaml`.
+- [ ] Add the package name to the `fixed` group in `.changeset/config.json`.
+- [ ] Add its alias to `workspaceAlias` in `config/vite.ts` (add the framework to the `react|vue|angular` pattern).
+- [ ] `pnpm test` green on chromium, firefox and webkit; `pnpm typecheck` and `pnpm build` clean.
+- [ ] Package README with a usage section, plus a usage section in the root README, and a changeset (`pnpm changeset`).
 
 Test helpers live in `tests/helpers.ts`: `mockOnLine(online)` fakes `navigator.onLine`; `setNetwork(online)` also fires the matching window event.
 
 ## Integrations via `report()`
 
-Sources outside the browser's own signals feed the watcher through `report(ok, rtt?)`. These are recipes for users, not shipped modules.
+Sources outside the browser's own signals feed the watcher through `report(ok, rtt?)`. These are recipes for users, not shipped modules. `watcher` is the app's watcher, from `createNetworkWatcher()` or `sharedWatcher()` in `@net-watch/core`.
 
 **Capacitor / Ionic** (native OS connectivity):
 
 ```ts
+import { sharedWatcher } from '@net-watch/core'
 import { Network } from '@capacitor/network'
+
+const watcher = sharedWatcher()
 Network.addListener('networkStatusChange', (s) => watcher.report(s.connected))
 ```
 
@@ -106,7 +112,7 @@ Network.addListener('networkStatusChange', (s) => watcher.report(s.connected))
 async function notify(online) {
   for (const client of await self.clients.matchAll()) client.postMessage({ type: 'net-watch', online })
 }
-// page:
+// page (watcher from '@net-watch/core'):
 navigator.serviceWorker.addEventListener('message', (e) => {
   if (e.data?.type === 'net-watch') watcher.report(e.data.online)
 })
@@ -115,10 +121,13 @@ navigator.serviceWorker.addEventListener('message', (e) => {
 **TanStack Query** (the other direction: net-watch drives Query's online manager):
 
 ```ts
+import { sharedWatcher } from '@net-watch/core'
 import { onlineManager } from '@tanstack/query-core'
+
+const watcher = sharedWatcher()
 watcher.subscribe((s) => onlineManager.setOnline(s.online))
 ```
 
 **Electron and Tauri**: the renderer or webview is a browser, so core works unchanged.
 
-Promote a recipe to a shipped adapter (e.g. `net-watch/capacitor`) only when users ask for it, following the adapter contract above.
+Promote a recipe to a shipped adapter (e.g. `@net-watch/capacitor`) only when users ask for it, following the adapter contract above.
