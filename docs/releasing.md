@@ -100,14 +100,7 @@ Trusted publishing (above) is the intended way. A token is only for a first publ
 
 Copy the token right after it is generated; npm never shows it again. Then: GitHub → repository → Settings → Secrets and variables → Actions → New repository secret → name `NPM_TOKEN`.
 
-To make the release job use it, add to the `changesets/action` step in `.github/workflows/release.yml`:
-
-```yaml
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-`actions/setup-node` with `registry-url` already writes the `.npmrc` that reads `NODE_AUTH_TOKEN`. npm tries OIDC first when it is configured, so the token then acts as a fallback. Delete the secret and revoke the token as soon as trusted publishing works.
+The release job already passes the secret to publishing (`NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the `changesets/action` step in `.github/workflows/release.yml`); without the secret it is empty and ignored. `actions/setup-node` with `registry-url` already writes the `.npmrc` that reads `NODE_AUTH_TOKEN`. npm tries OIDC first when it is configured, so the token then acts as a fallback. Delete the secret and revoke the token as soon as trusted publishing works.
 
 Limits to know: npm announced that direct publishing with granular tokens is being removed in January 2027 (stage-only tokens and `npm stage publish` remain), and from August 2026 bypass-2FA tokens can no longer perform account-identity actions. Do not build a long-term pipeline on a token. Source: https://docs.npmjs.com/about-access-tokens
 

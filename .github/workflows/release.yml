@@ -45,3 +45,6 @@ jobs:
           # PRs and pushes made with the default token do not trigger CI. Set the RELEASE_TOKEN secret
           # (fine-grained PAT or GitHub App token: contents + pull requests write) so the Version PR gets its checks.
           github-token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        env:
+          # Optional fallback: used only when the repository has an NPM_TOKEN secret. npm tries OIDC (trusted publishing) first.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
