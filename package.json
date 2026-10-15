@@ -1,53 +1,25 @@
 {
-  "name": "react-components-starter",
+  "name": "net-watch-monorepo",
+  "private": true,
   "type": "module",
-  "version": "0.0.0",
-  "description": "A starter for creating a React component library.",
-  "author": "Author Name <author.name@mail.com>",
-  "license": "MIT",
-  "homepage": "https://github.com/author/library#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/author/library.git"
-  },
-  "bugs": {
-    "url": "https://github.com/author/library/issues"
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "play": "vite",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit",
-    "release": "bumpp",
-    "prepublishOnly": "pnpm run build"
-  },
-  "peerDependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "build": "turbo run build",
+    "dev": "turbo run dev --concurrency 20",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "example:vanilla": "pnpm --filter @net-watch/example-vanilla dev",
+    "example:react": "pnpm --filter @net-watch/example-react dev",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
-    "@tsconfig/strictest": "^2.0.8",
-    "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/browser-playwright": "^4.1.10",
-    "bumpp": "^11.1.0",
-    "tsdown": "^0.22.5",
-    "typescript": "^7.0.2",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10",
-    "vitest-browser-react": "^2.2.0"
+    "@changesets/cli": "^3.0.3",
+    "@tsconfig/strictest": "catalog:",
+    "turbo": "^2.11.8",
+    "typescript": "catalog:",
+    "vite": "catalog:"
   }
 }

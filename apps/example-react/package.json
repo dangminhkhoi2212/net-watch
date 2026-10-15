@@ -1,0 +1,25 @@
+{
+  "name": "@net-watch/example-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": {
+    "@net-watch/core": "workspace:*",
+    "@net-watch/react": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

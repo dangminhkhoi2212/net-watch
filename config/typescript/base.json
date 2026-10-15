@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Base",
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["es2023", "DOM"],
+    "moduleDetection": "force",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": [],
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@net-watch/core": ["../../packages/core/src/core/index.ts"],
+      "@net-watch/core/*": ["../../packages/core/src/*/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}
