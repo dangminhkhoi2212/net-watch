@@ -36,7 +36,7 @@ gitGraph
 |---|---|---|
 | `ci.yml` | PR and push to `develop` / `main` | build, typecheck and test in chromium, firefox and webkit; on PRs, fails if a published package changed without a changeset |
 | `release.yml` | push to `develop` / `main` | opens or updates the **Version Packages** PR; when that PR is merged, publishes to npm, creates git tags and GitHub releases |
-| `back-merge.yml` | push to `main` | opens a `main` → `develop` PR when develop is behind |
+| `back-merge.yml` | push to `main` | opens a `main` → `develop` PR when develop is behind (does nothing until the `develop` branch exists) |
 
 ## Day to day
 
