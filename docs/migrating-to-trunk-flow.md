@@ -4,6 +4,8 @@ net-watch started with gitflow (`develop` ships betas, `main` ships stable relea
 
 Do the migration in the order below. Phase 1 is one pull request; the rest is GitHub and npm settings.
 
+> **Status:** Phase 1 is implemented in the pull request "ci: switch to trunk-based release" (it leaves out the optional `pkg.pr.new` workflow). Phases 2 to 4 are settings only you can change. Delete this guide after Phase 4.
+
 ## The target flow
 
 ```mermaid

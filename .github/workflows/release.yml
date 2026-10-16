@@ -1,14 +1,15 @@
 name: Release
 
-# develop → beta releases (the repo is in Changesets pre mode `beta`, see .changeset/pre.json)
-# main    → stable releases (after `changeset pre exit`, see docs/releasing.md)
+# Trunk-based (the dnd-kit flow, see docs/releasing.md): every push to main runs two channels.
+#   current: opens or updates the "Version Packages" PR; merging that PR publishes the stable release (dist-tag latest)
+#   beta:    publishes a snapshot (dist-tag beta) when changesets are pending; latest is never touched
 on:
   push:
-    branches: [develop, main]
+    branches: [main]
 
-# One release at a time per branch; never cancel a publish half-way.
+# One release at a time; never cancel a publish half-way.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 permissions:
@@ -16,17 +17,26 @@ permissions:
 
 jobs:
   release:
-    name: Version PR or publish
+    name: ${{ matrix.channel }}
     # Forks cannot publish (no trusted publisher is configured for them).
     if: github.repository == 'dangminhkhoi2212/net-watch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Optional approval gate: add required reviewers to this environment (Settings → Environments).
+    # Without reviewers it runs straight through.
+    environment: production
     permissions:
       contents: write # push tags, create GitHub releases, push the version branch
       pull-requests: write # open and update the "Version Packages" PR
-      id-token: write # npm trusted publishing (OIDC): no npm token is stored anywhere
+      id-token: write # npm trusted publishing (OIDC)
+    strategy:
+      max-parallel: 1 # `current` first, then `beta`; every matrix job is a fresh checkout
+      matrix:
+        channel: [current, beta]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -36,15 +46,31 @@ jobs:
       # Trusted publishing needs npm >= 11.5.1.
       - run: npm install -g npm@^11.5.1 && npm --version
       - run: pnpm install --frozen-lockfile
-      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+
+      - name: Version Packages PR, or publish the stable release
+        if: matrix.channel == 'current'
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           version-script: pnpm version-packages
-          publish-script: pnpm release # builds, then `changeset publish` (dist-tag `beta` while in pre mode)
+          publish-script: pnpm release # builds, then `changeset publish` (dist-tag latest)
           commit-message: "chore: version packages"
-          pr-title: "${{ github.ref_name == 'develop' && 'chore: version packages (beta)' || 'chore: version packages' }}"
+          pr-title: "chore: version packages"
           # PRs and pushes made with the default token do not trigger CI. Set the RELEASE_TOKEN secret
           # (fine-grained PAT or GitHub App token: contents + pull requests write) so the Version PR gets its checks.
           github-token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         env:
           # Optional fallback: used only when the repository has an NPM_TOKEN secret. npm tries OIDC (trusted publishing) first.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish a beta snapshot
+        if: matrix.channel == 'beta'
+        run: |
+          # `changeset version --snapshot` exits 1 when nothing is pending (for example on the push of a version commit).
+          if [ -z "$(find .changeset -maxdepth 1 -name '*.md' ! -name README.md)" ]; then
+            echo "No pending changesets: nothing to snapshot"; exit 0
+          fi
+          pnpm version-packages:beta # 0.x.y-beta-<timestamp>, not committed anywhere
+          pnpm release:beta # builds, then `changeset publish --tag beta --no-git-tag`
+        env:
+          # Optional fallback, same as above.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
