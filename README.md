@@ -131,6 +131,16 @@ More docs:
 - Integrations (Capacitor, service worker, TanStack Query) and writing new adapters: [docs/adapters.md](docs/adapters.md).
 - How it works inside: [docs/architecture.md](docs/architecture.md).
 
+## Documentation
+
+The documentation site (landing page with a live demo, guides, API reference and prompts for AI assistants) lives in [apps/docs](apps/docs):
+
+```bash
+pnpm docs   # builds the packages, then starts the site on http://localhost:3000
+```
+
+Its pages are MDX files in `apps/docs/content/docs`. `/llms.txt` and `/llms-full.txt` give AI assistants the whole documentation, and any docs URL ending in `.md` returns that page as Markdown.
+
 ## Examples
 
 Runnable apps in [apps/](apps/), each with a live state table, a request button and a slow-request button (it makes `quality` drop so you can see the banner):

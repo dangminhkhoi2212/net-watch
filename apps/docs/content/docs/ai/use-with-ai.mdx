@@ -1,0 +1,112 @@
+---
+title: Use net-watch with AI
+description: Give your coding assistant the docs in the right format, and use ready-made prompts and a rules snippet.
+icon: Sparkles
+---
+
+AI coding assistants write better net-watch code when they read the real docs instead of guessing from memory. This page shows how to hand them the docs, a rules snippet to keep in your repo, and prompts for common jobs.
+
+## Give your assistant the docs
+
+This site publishes its content in formats that are easy for a model to read.
+
+| What | Where | Give it to an assistant when |
+|---|---|---|
+| Index of pages | `/llms.txt` | The assistant can browse. It reads the index and opens the pages it needs. |
+| All docs in one file | `/llms-full.txt` | You want a whole-project task done, like adding net-watch to an app. It costs the most context, and the assistant needs nothing else. |
+| One page as Markdown | Add `.md` to the page URL, for example `/docs/quick-start.md` | The task is small, like a ping endpoint or a banner. Paste or link only that page. |
+
+Every docs page also has two buttons at the top. **Copy Markdown** puts the page's Markdown on your clipboard, ready to paste into a chat. **Open** lets you send the page to an AI chat service.
+
+A good rule of thumb: for a chat tool, paste one or two pages. For an agent that works inside your repo, point it at `/llms.txt` or `/llms-full.txt` and let it read.
+
+## Rules for AGENTS.md, CLAUDE.md or Cursor rules
+
+Assistants that work in your repo read a rules file. Add this to `AGENTS.md`, `CLAUDE.md` or your Cursor rules, and replace `YOUR-SITE` with the address of this docs site.
+
+```md title="AGENTS.md"
+## net-watch
+
+This app uses net-watch (`@net-watch/core` and a framework adapter) to know whether the user is online and how good the connection is.
+
+- Before writing net-watch code, read https://YOUR-SITE/llms.txt and open the pages you need. Do not rely on memory.
+- Use one shared watcher for the whole app. Create it once in a module with `createNetworkWatcher({ pingUrl })` and import it everywhere. Never create a watcher inside a component or a function that runs many times.
+- Make HTTP requests through `watchFetch(watcher)` from `@net-watch/core/fetch`. For other HTTP clients, call `watcher.report(true, ms)` or `watcher.report(false)` from an interceptor.
+- Never poll `navigator.onLine`, never listen to the `online` or `offline` events, and never write a ping timer yourself. The watcher already does this.
+- Read the state with the framework adapter (`useNetworkStatus`, or `injectNetworkStatus` in Angular), or with `watcher.getState()` and `watcher.subscribe()`.
+- Create the banner with `createBanner` from `@net-watch/core/banner` inside an effect or mount hook, never during render or on the server.
+- Treat undefined metrics as unknown. Do not replace `rtt`, `downlink` or `effectiveType` with a guess.
+- Only use options and fields that appear in the docs. Never invent an option.
+- The ping endpoint must be same origin, HTTPS, answer HEAD with 204 and Cache-Control: no-store, and be excluded from service worker caches.
+```
+
+## Ready-made prompts
+
+Copy a prompt and paste it into your assistant. Each prompt is self-contained, and the address of this docs site is already filled in (on a local copy it shows `YOUR-SITE`: replace it by hand).
+
+<Prompt title="Add net-watch to my app">
+{`Add net-watch to this project. Read /llms-full.txt from the net-watch docs site (https://YOUR-SITE/llms-full.txt) first, and follow the docs, not your memory. Do not invent options or fields.
+
+1. Detect the framework from package.json (React, Vue, Angular, Next.js, Nuxt, or plain TypeScript).
+2. Install the right packages: @net-watch/core, plus @net-watch/react, @net-watch/vue or @net-watch/angular for that framework. Use the package manager the project already uses.
+3. Create ONE watcher in its own module with createNetworkWatcher. Use pingUrl: '/api/ping' (or the project's existing health route) and import this watcher everywhere.
+4. Wrap the app's fetch calls with watchFetch(watcher) from @net-watch/core/fetch, and use the wrapped function in the API layer. Do not patch window.fetch.
+5. Add an offline banner with createBanner from @net-watch/core/banner, created in an effect or mount hook so it never runs on the server.
+6. Add a small status component that shows online or offline and the quality with the rtt when it is known.
+7. If there is no ping route, add one that answers HEAD and GET with 204 and Cache-Control: no-store.
+
+Make the smallest change that works, run the type checker and the tests, and tell me which files you changed.`}
+</Prompt>
+
+<Prompt title="Add a ping endpoint to my backend">
+{`Add a ping endpoint for net-watch to this backend. Read https://YOUR-SITE/docs/guides/ping-endpoint.md first.
+
+Requirements:
+- Same origin as the web app, served over HTTPS.
+- Path: /ping (or /api/ping if the app puts every route under /api).
+- Answers HEAD and GET with status 204, an empty body and the header Cache-Control: no-store.
+- No authentication, no session lookup, no database access, no logging of each request.
+- Registered before any auth middleware, and not rate limited like normal API routes.
+- Not cached by a CDN, a reverse proxy or the app's service worker. If there is a service worker, add a rule so it never handles this path.
+
+Detect the backend framework and write the idiomatic version. Then show me a curl -I command to verify it, and point createNetworkWatcher at it with the pingUrl option.`}
+</Prompt>
+
+<Prompt title="Show connection quality in my UI">
+{`Show the connection quality in this app's UI with net-watch. Read https://YOUR-SITE/docs/concepts/network-quality.md and https://YOUR-SITE/docs/reference/state.md first.
+
+- Reuse the app's existing watcher. If there is none, stop and tell me, instead of creating a second one.
+- Read the state with the framework adapter (useNetworkStatus, or injectNetworkStatus in Angular).
+- Show a small indicator with the quality (excellent, good, fair, poor, unknown) and the rtt in ms.
+- rtt, downlink and effectiveType can be undefined. Show a placeholder when they are. Never estimate them from other values.
+- When offline, show Offline and hide the quality.
+- Server rendering: on the server the quality is always unknown. Avoid a hydration mismatch by rendering quality-dependent UI after the component mounts.
+- Do not add polling or timers. The watcher already updates the state.
+
+Run the type checker when you are done.`}
+</Prompt>
+
+<Prompt title="Review my net-watch setup">
+{`Review how this project uses net-watch. Read https://YOUR-SITE/llms-full.txt first and compare the code with the docs. Report problems, do not change code yet.
+
+Check each item and answer pass or fail with the file and line:
+1. One watcher: createNetworkWatcher is called once, in one module. No watcher is created inside a component, a hook or a function that runs repeatedly.
+2. pingUrl is set, points to a same-origin HTTPS endpoint, and the endpoint answers HEAD with 204 and Cache-Control: no-store.
+3. The ping URL is not cached: not by a service worker, a CDN or a proxy.
+4. No manual polling: no setInterval or setTimeout that checks navigator.onLine or calls the ping URL, and no direct online or offline event listeners.
+5. Requests go through watchFetch(watcher) or call watcher.report from an interceptor. window.fetch is not patched.
+6. The banner is created inside an effect or a mount hook, and destroyed on cleanup.
+7. SSR safe: nothing reads window or document at import time, and quality-dependent UI renders after mount.
+8. No invented options or fields. Every option and state field exists in the docs.
+
+End with a list of fixes ordered by impact.`}
+</Prompt>
+
+## Tips
+
+- **Say which version you use.** Run `npm ls @net-watch/core` and include the version in your prompt. All four packages share one version number.
+- **Paste the state shape.** Give the assistant the `NetworkState` fields from [the state reference](/docs/reference/state). It stops it from making up fields like `speed` or `isOnline`.
+- **Name your framework and router.** "Next.js App Router" and "Vue 3 with Nuxt" lead to different SSR choices.
+- **Ask it to run the type checker.** A wrong option name fails `tsc` right away, which catches the most common mistake.
+- **Keep the rules file in the repo.** The rules snippet works for every later session, so you do not repeat yourself in each prompt.
+- **Review the ping endpoint yourself.** Check that it is not cached and runs before auth. An assistant can get these details wrong, and the app would look online forever.

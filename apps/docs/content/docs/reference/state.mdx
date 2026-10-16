@@ -1,0 +1,162 @@
+---
+title: State reference
+description: The NetworkState object, every field, which browsers provide it, and the exported types.
+icon: Braces
+---
+
+`watcher.getState()` returns a `NetworkState`, and `subscribe` passes one to every listener. The framework adapters return the same object.
+
+```ts
+interface NetworkState {
+  online: boolean
+  since: number
+  quality: Quality
+  rtt: number | undefined
+  downlink: number | undefined
+  effectiveType: EffectiveType | undefined
+  type: ConnectionType | undefined
+  saveData: boolean
+}
+```
+
+## Fields
+
+| Field | Type | Meaning | Available in |
+|---|---|---|---|
+| `online` | `boolean` | The user can really reach the network. See [Detecting offline](/docs/concepts/detecting-offline) | Every browser |
+| `since` | `number` | `Date.now()` of the last online/offline flip. At creation, the time the watcher was created | Every browser |
+| `quality` | `Quality` | Band over the smoothed `rtt`. `'unknown'` until a sample exists, and while offline | Every browser, once a sample exists |
+| `rtt` | `number \| undefined` | Smoothed round-trip time in milliseconds, rounded to 50 | Every browser, once a sample exists. Chromium also provides one at startup |
+| `downlink` | `number \| undefined` | Smoothed throughput in Mbps. Rounded to 0.1 below 10, to whole Mbps from 10 | Chrome and Edge, Firefox, Safari 16.4 and later |
+| `effectiveType` | `EffectiveType \| undefined` | The browser's own speed class | Chrome and Edge only |
+| `type` | `ConnectionType \| undefined` | The kind of link, for example `'wifi'` or `'cellular'` | Chrome on Android and ChromeOS only |
+| `saveData` | `boolean` | The user turned on a data saver | Chrome and Edge. `false` everywhere else |
+
+How `rtt`, `quality` and `downlink` are computed is in [Network quality](/docs/concepts/network-quality). The browser matrix is in [Browser support](/docs/concepts/browser-support).
+
+### Example
+
+```ts
+import { createNetworkWatcher } from '@net-watch/core'
+
+const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+
+// Right after creation nothing has been measured: quality is 'unknown' and rtt is undefined
+// (Chromium may already fill them in from navigator.connection).
+
+watcher.subscribe((state) => {
+  console.log(state.online) // true
+  console.log(state.quality) // 'good'
+  console.log(state.rtt) // 150
+  console.log(state.effectiveType) // '4g' in Chrome, undefined in Firefox and Safari
+})
+```
+
+Always handle `undefined`:
+
+```ts
+const label = state.rtt === undefined ? 'measuring...' : `${state.rtt} ms`
+```
+
+## State rules
+
+- **Immutable.** A change replaces the state object. No change keeps the same reference. Compare states with `===` and treat them as read-only.
+- **Notify on visible change only.** Listeners fire when any field changes after rounding. `rtt` is rounded to 50 ms and `downlink` to 0.1 Mbps (whole Mbps from 10), so a stream of similar samples causes no re-renders. `since` does not trigger a notification on its own. It changes together with `online`.
+- **Unknown is `undefined`, never a guess.** A browser that does not expose a value leaves it `undefined`. `quality` uses `'unknown'` and `saveData` uses `false` for the same case.
+- **Order.** `onOnline` and `onOffline` run first, then listeners in subscription order.
+- **Going offline** sets `quality` to `'unknown'` and clears `rtt` and `downlink`.
+- **SSR.** Without `window`, the state is `online: true`, `quality: 'unknown'`, every metric `undefined` and `saveData: false`. No listeners or timers are created. See the [SSR guide](/docs/guides/ssr).
+
+## Exported types
+
+All of these are exported from `@net-watch/core`.
+
+### `Quality`
+
+```ts
+type Quality = 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
+```
+
+### `EffectiveType`
+
+```ts
+type EffectiveType = 'slow-2g' | '2g' | '3g' | '4g'
+```
+
+### `ConnectionType`
+
+```ts
+type ConnectionType =
+  | 'bluetooth'
+  | 'cellular'
+  | 'ethernet'
+  | 'wifi'
+  | 'wimax'
+  | 'none'
+  | 'other'
+  | 'unknown'
+```
+
+### `RttBounds`
+
+```ts
+type RttBounds = readonly [excellent: number, good: number, fair: number]
+```
+
+Upper bounds in milliseconds of the `excellent`, `good` and `fair` bands, in ascending order. Anything slower is `poor`. The default is `[150, 400, 1400]`.
+
+### `NetworkListener`
+
+```ts
+type NetworkListener = (state: NetworkState, prev: NetworkState) => void
+```
+
+The callback type for `subscribe`.
+
+### `NetworkWatcher`
+
+```ts
+interface NetworkWatcher {
+  getState: () => NetworkState
+  subscribe: (listener: NetworkListener) => () => void
+  check: () => Promise<NetworkState>
+  report: (ok: boolean, rtt?: number) => void
+  waitForOnline: () => Promise<NetworkState>
+  destroy: () => void
+}
+```
+
+Each method is documented in the [API reference](/docs/reference/api#watcher-methods).
+
+### `WatcherOptions`
+
+```ts
+interface WatcherOptions {
+  pingUrl?: string
+  timeout?: number
+  maxRetryDelay?: number
+  heartbeat?: number
+  rttBounds?: RttBounds
+  onOnline?: (state: NetworkState) => void
+  onOffline?: (state: NetworkState) => void
+}
+```
+
+Defaults and descriptions are in the [options table](/docs/reference/api#options).
+
+## Using the types
+
+```ts
+import type { NetworkState, Quality } from '@net-watch/core'
+
+const rank: Record<Exclude<Quality, 'unknown'>, number> = {
+  excellent: 3,
+  good: 2,
+  fair: 1,
+  poor: 0,
+}
+
+export function canUploadVideo(state: NetworkState): boolean {
+  return state.online && state.quality !== 'unknown' && rank[state.quality] >= 2
+}
+```

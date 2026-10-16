@@ -1,0 +1,97 @@
+---
+title: Why net-watch
+description: What navigator.onLine really tells you, why polling is the wrong fix, and what net-watch does instead.
+icon: CircleHelp
+---
+
+Most apps decide "is the user online?" with one line:
+
+```ts
+if (navigator.onLine) {
+  // go ahead and call the API
+}
+```
+
+That line answers a narrower question than the one you are asking. This page explains the gap, what net-watch does about it, and when you should not bother with it.
+
+## What `navigator.onLine` really means
+
+The browser sets `navigator.onLine` from the operating system's network state. It is a statement about the device, not about the internet.
+
+- **`false` is reliable.** No usable network interface is up, so no request can leave the machine. You can trust it, and net-watch does: `navigator.onLine === false` always wins.
+- **`true` only means an interface is up.** It says nothing about whether a request will arrive anywhere.
+
+`true` is wrong in several common situations:
+
+| Situation | `navigator.onLine` | What the user experiences |
+|---|---|---|
+| Wi-Fi connected, router has no uplink | `true` | Every request hangs or fails |
+| Captive portal (hotel, airport, café) | `true` | Requests are redirected to a login page, or TLS fails |
+| Virtual adapters from Docker, a VPN client or Hyper-V | `true`, even with Wi-Fi switched off | Nothing works, and the flag never flips |
+| Corporate firewall or proxy that blocks your host | `true` | Your API is unreachable while other sites load |
+
+Developers hit the virtual adapter case first. You turn Wi-Fi off to test your offline screen, nothing changes, and you conclude the feature is broken. Use DevTools, Network, Offline to test instead.
+
+The cost lands on your users. Buttons spin, forms submit into the void, and the app shows "Online" while nothing loads.
+
+## Polling is the usual fix, and a poor one
+
+The common workaround is a timer: every N seconds, request a small URL and see whether it answers.
+
+- **It sends traffic all the time.** Every open tab of every user sends a request every N seconds, forever, even while nothing is happening. That wakes the radio on phones, costs battery and adds load on your server.
+- **It forces a bad trade-off.** A short interval catches outages quickly but multiplies the traffic. A long interval is cheap but leaves the app wrong for up to N seconds.
+- **It ignores evidence you already have.** Your app is making real requests. A response is stronger proof of connectivity than any ping.
+
+## What net-watch does instead
+
+net-watch layers its evidence and spends the cheap signals first.
+
+1. **Browser signals.** `navigator.onLine`, the `online` and `offline` events, the tab becoming visible, a page restored from the back/forward cache. They cost nothing.
+2. **Your real requests.** Wrap `fetch` with `watchFetch` and every response becomes proof that the user is online, plus a latency sample. A network error becomes a suspicion.
+3. **A probe, only when needed.** When something looks wrong, or while the user is offline, net-watch sends one `HEAD` request to your `pingUrl`. It never sends more than one at a time.
+
+While the user is offline, probes back off: 2 seconds, then doubling up to 30 seconds. The wait resets once the connection is back.
+
+The result is that **an online, idle app sends no requests** apart from a check at startup and one whenever the browser signals a change, such as the tab becoming visible again. If you want to notice a connection that dies while the user is idle, opt in to a `heartbeat` interval. It is off by default.
+
+Without a `pingUrl`, only layers 1 and 2 run. That still catches unplugged cables and Wi-Fi switched off, and a successful request proves the user is online. Without a probe nothing can confirm a failed request, so it cannot catch "connected to Wi-Fi but no internet". The [ping endpoint guide](/docs/guides/ping-endpoint) adds that in a few lines. The full decision logic is in [Detecting offline](/docs/concepts/detecting-offline).
+
+## The quality side
+
+"Online" is not one thing. A user on a congested train network is online and still cannot use your video upload. net-watch also reports how good the link is, from data it already has:
+
+- **Latency (`rtt`).** Round-trip times from probes and from your own requests, smoothed and rounded to 50 ms so the state does not change on every sample.
+- **A quality band.** `excellent`, `good`, `fair` or `poor`, derived from the smoothed latency, with a small hysteresis so the band does not flicker at a boundary.
+- **Download speed (`downlink`).** Computed from the browser's own Resource Timing entries for files your page already downloaded. Only large responses count, because on a tiny response latency dominates the measurement.
+- **Browser hints.** `effectiveType`, `type` and `saveData` where the browser exposes them (Chromium).
+
+Nothing here downloads test files. The details are in [Network quality](/docs/concepts/network-quality).
+
+## What it deliberately does not do
+
+- **Signal strength.** Wi-Fi bars and cellular dBm are not available to web pages in any browser. net-watch does not fake them. A native app can read them; a web page cannot.
+- **Bandwidth tests.** It never downloads a payload to measure speed. That would burn the user's data and could make a poor connection worse. If the page has not downloaded anything large, `downlink` stays `undefined`.
+- **Guessing.** A metric the browser does not expose is `undefined`, not an estimate built from something unrelated.
+
+## How it compares
+
+These are the alternatives most people find first, as of October 2026.
+
+| Library | Scope | Notes |
+|---|---|---|
+| VueUse `useNetwork` / `useOnline`, react-use `useNetworkState` and similar hooks | Vue, React and others | Built on `navigator.onLine`, the online/offline events and `navigator.connection`. No check that a server is reachable, no banner |
+| `offline-js` (Offline.js) | Any page | Bundles a banner and pings. Last npm release is 0.7.19 from 2017, no TypeScript types, no framework adapters |
+| `react-detect-offline` | React only | Last published in 2022 |
+| `ng-connection-service` | Angular only | Last published 2024 |
+| `is-online` | Node-oriented | One-time check, no events or banner |
+| `@react-native-community/netinfo` | React Native only | Reads the native network stack |
+
+The hook libraries do what they say, and if `navigator.onLine` is enough for you, they are enough. net-watch exists for the case where it is not: it checks that a server is reachable, reports quality, and ships a banner, in one typed core with thin adapters for React, Vue and Angular.
+
+## When not to use net-watch
+
+- **You only need to know that Wi-Fi was switched off.** `navigator.onLine` and the two events already do that. Adding a library buys you nothing.
+- **You are building for React Native.** net-watch targets browsers. Use `@react-native-community/netinfo`, which can read the native network stack.
+- **You need signal strength or a speed test.** A web page cannot read the first, and net-watch deliberately does not run the second.
+
+If none of those apply, start with the [quick start](/docs/quick-start).
