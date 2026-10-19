@@ -1,5 +1,13 @@
 # @net-watch/react
 
+## 0.1.1
+
+### Patch Changes
+
+- 1019cd6: Better npm discoverability: keywords, clearer descriptions, README rewrites and `homepage` pointing at the documentation site.
+- Updated dependencies [1019cd6]
+  - @net-watch/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

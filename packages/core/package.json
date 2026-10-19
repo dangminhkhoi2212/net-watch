@@ -1,6 +1,6 @@
 {
   "name": "@net-watch/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Detect if the user is really online (not just Wi-Fi on) and measure connection quality: latency, speed and an offline banner. Zero dependencies, works in Chrome, Firefox and Safari.",
   "keywords": [
     "network-status",

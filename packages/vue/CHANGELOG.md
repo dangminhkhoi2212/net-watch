@@ -1,5 +1,14 @@
 # @net-watch/vue
 
+## 0.1.1
+
+### Patch Changes
+
+- 1019cd6: Better npm discoverability: keywords, clearer descriptions, README rewrites and `homepage` pointing at the documentation site.
+- 1d033ef: `useNetworkStatus` no longer subscribes on the server. Vue does not dispose component scopes during server rendering, so every render leaked one listener on the watcher.
+- Updated dependencies [1019cd6]
+  - @net-watch/core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

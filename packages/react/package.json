@@ -1,6 +1,6 @@
 {
   "name": "@net-watch/react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React hook useNetworkStatus() for real online/offline detection and connection quality (latency, speed). Built on @net-watch/core.",
   "keywords": [
     "network-status",
