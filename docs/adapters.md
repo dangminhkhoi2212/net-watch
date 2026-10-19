@@ -11,7 +11,7 @@ Every adapter, current or future (React, Vue, Angular, Svelte, Solid, Lit, …):
 3. Takes an optional `watcher` argument that defaults to `sharedWatcher()`, so users can pass a configured watcher.
 4. Returns the framework's read-only reactive value of the full `NetworkState`.
 5. Unsubscribes when the framework's owner is destroyed (component, scope, injector).
-6. Is SSR-safe: React passes a server snapshot; other frameworks read `getState()`, which is SSR-safe in core.
+6. Is SSR-safe and leaves nothing behind on the server: React passes a server snapshot (and `useSyncExternalStore` never subscribes there); Vue subscribes only once the component is mounted; Angular unsubscribes through `DestroyRef` when the owner is destroyed. Other frameworks read `getState()`, which is SSR-safe in core.
 7. Holds no detection logic. If an adapter needs a new behaviour, add it to core first, then use it.
 
 Vue and Angular read `getState()` on first render, so on Chromium (where the browser exposes connection metrics at creation) the first client render can differ from the server render. Use the same watcher state on both sides, or render quality-dependent UI after mount.
@@ -46,16 +46,33 @@ export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): Net
 
 ### Vue: `packages/vue/src/index.ts`
 
+Inside a component the composable subscribes in `onMounted`, which never runs while rendering on the server (Vue does not dispose component scopes there, so a subscription made in `setup` would leak one listener per render). Outside a component it subscribes immediately.
+
 ```ts
-import { computed, getCurrentScope, onScopeDispose, shallowRef, type ComputedRef } from 'vue'
+import { computed, getCurrentInstance, getCurrentScope, onMounted, onScopeDispose, shallowRef, type ComputedRef } from 'vue'
 import { sharedWatcher, type NetworkState, type NetworkWatcher } from '@net-watch/core'
 
 export function useNetworkStatus(watcher: NetworkWatcher = sharedWatcher()): ComputedRef<NetworkState> {
   const state = shallowRef(watcher.getState())
-  const off = watcher.subscribe((s) => {
-    state.value = s
-  })
-  if (getCurrentScope()) onScopeDispose(off)
+  const subscribe = () => {
+    state.value = watcher.getState() // catch up with anything that changed since setup
+    return watcher.subscribe((s) => {
+      state.value = s
+    })
+  }
+
+  if (getCurrentInstance()) {
+    // Inside a component, subscribe once it is mounted. onMounted never runs while rendering on the server, where Vue
+    // does not dispose component scopes: a subscription made in setup would leak one listener per render.
+    let off: (() => void) | undefined
+    onMounted(() => {
+      off = subscribe()
+    })
+    onScopeDispose(() => off?.())
+  } else {
+    const off = subscribe()
+    if (getCurrentScope()) onScopeDispose(off)
+  }
   return computed(() => state.value)
 }
 ```
