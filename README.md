@@ -133,7 +133,7 @@ More docs:
 
 ## Documentation
 
-The documentation site (landing page with a live demo, guides, API reference and prompts for AI assistants) lives in [apps/docs](apps/docs):
+The documentation site (landing page with a live demo, guides, API reference and prompts for AI assistants) is live at https://net-watch-docs.vercel.app. Its source lives in [apps/docs](apps/docs):
 
 ```bash
 pnpm docs   # builds the packages, then starts the site on http://localhost:3000

@@ -51,10 +51,20 @@ When behaviour or the public API of a package changes, update the matching pages
 
 ## Deploy
 
-Deploy it as its own project (it is not published to npm). On Vercel:
+Live site: https://net-watch-docs.vercel.app (Vercel, Hobby plan). It is its own Vercel project, linked to this repository; it is not published to npm.
 
-- Root Directory: `apps/docs`, with "Include source files outside of the Root Directory" turned on.
-- Install Command: `cd ../.. && pnpm install --frozen-lockfile`
-- Build Command: `cd ../.. && pnpm turbo run build --filter=@net-watch/docs`
+Settings that work (the project was created with exactly these):
 
-The build needs network access once, to fetch the Google fonts. The API routes (`/api/ping`, `/api/slow`, `/api/payload`, `/api/search`) need a server runtime, so a fully static export is not possible. These Vercel settings have not been tested yet.
+| Setting | Value |
+|---|---|
+| Framework | Next.js |
+| Root Directory | `apps/docs`, with "Include source files outside of the Root Directory" on |
+| Install Command | `cd ../.. && pnpm install --frozen-lockfile` |
+| Build Command | `cd ../.. && pnpm turbo run build --filter=@net-watch/docs` |
+| Node.js | 24.x |
+| Environment variable | `ENABLE_EXPERIMENTAL_COREPACK=1`, so Vercel uses the pnpm version pinned in the root `package.json` |
+| Deployment Protection | Vercel Authentication on **preview** deployments only. New projects protect production too (`all_except_custom_domains`), which would put the public docs behind a Vercel login |
+
+How it deploys: a push to `main` builds production; a push to any other branch builds a protected preview. `NEXT_PUBLIC_SITE_URL` is not needed on Vercel, because `VERCEL_PROJECT_PRODUCTION_URL` is used for Open Graph URLs.
+
+The API routes (`/api/ping`, `/api/slow`, `/api/payload`, `/api/search`) need a server runtime, so a fully static export is not possible. The build needs network access once, to fetch the Google fonts.
