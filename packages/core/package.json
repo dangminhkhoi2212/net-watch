@@ -60,9 +60,21 @@
     "vitest": "catalog:"
   },
   "exports": {
-    ".": "./dist/index.js",
-    "./banner": "./dist/banner.js",
-    "./fetch": "./dist/fetch.js",
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./banner": {
+      "import": "./dist/banner.js",
+      "require": "./dist/banner.cjs"
+    },
+    "./fetch": {
+      "import": "./dist/fetch.js",
+      "require": "./dist/fetch.cjs"
+    },
     "./package.json": "./package.json"
-  }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts"
 }

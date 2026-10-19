@@ -65,6 +65,12 @@ The package builds to `es2020`, so newer syntax such as `??=` is lowered for the
 - Browsers below the floor. They may work, but they are not tested.
 - Non-browser runtimes. Importing the package works anywhere, because it is [SSR-safe](/docs/guides/ssr), but detection only runs where `window` exists. For React Native, use `@react-native-community/netinfo`.
 
+## Module formats
+
+`@net-watch/core`, `@net-watch/react` and `@net-watch/vue` ship both ES modules and CommonJS, so `import` and `require()` both work, including in Jest's CommonJS mode and on Node versions that cannot `require()` ES modules. `@net-watch/angular` is ES modules only, like every Angular library. Types are included for both.
+
+Use one format per app. If a bundle loads both the ESM and the CommonJS copy of `@net-watch/core`, `sharedWatcher()` creates one watcher per copy.
+
 ## See also
 
 - [Detecting offline](/docs/concepts/detecting-offline): how the layers combine.
