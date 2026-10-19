@@ -10,6 +10,9 @@
     "clean": "rm -rf .turbo .next .source"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "@fontsource/ibm-plex-sans-condensed": "5.3.0",
     "@net-watch/core": "workspace:*",
     "@net-watch/react": "workspace:*",
     "cn": "^0.4.0",

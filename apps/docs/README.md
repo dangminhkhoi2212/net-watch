@@ -67,4 +67,4 @@ Settings that work (the project was created with exactly these):
 
 How it deploys: a push to `main` builds production; a push to any other branch builds a protected preview. `NEXT_PUBLIC_SITE_URL` is not needed on Vercel, because `VERCEL_PROJECT_PRODUCTION_URL` is used for Open Graph URLs.
 
-The API routes (`/api/ping`, `/api/slow`, `/api/payload`, `/api/search`) need a server runtime, so a fully static export is not possible. The build needs network access once, to fetch the Google fonts.
+The API routes (`/api/ping`, `/api/slow`, `/api/payload`, `/api/search`) need a server runtime, so a fully static export is not possible. The IBM Plex fonts come from `@fontsource` packages (imported in `app/layout.tsx`), so the build needs no network access beyond `pnpm install`.
