@@ -1,6 +1,6 @@
 {
   "name": "@net-watch/vue",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Vue 3 composable useNetworkStatus() for real online/offline detection and connection quality (latency, speed). Built on @net-watch/core.",
   "keywords": [
     "network-status",
