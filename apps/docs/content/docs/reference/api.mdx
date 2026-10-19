@@ -1,0 +1,248 @@
+---
+title: API reference
+description: Every export of @net-watch/core, its options, methods and defaults.
+icon: Code
+---
+
+`@net-watch/core` has three entry points. All of them are ESM, have no dependencies, and are safe to import without `window`.
+
+| Entry point | Exports |
+|---|---|
+| `@net-watch/core` | `createNetworkWatcher`, `sharedWatcher`, and the types |
+| `@net-watch/core/fetch` | `watchFetch` |
+| `@net-watch/core/banner` | `createBanner`, `BannerOptions`, `BannerTheme` |
+
+The shape of the state object is documented in the [state reference](/docs/reference/state).
+
+## `createNetworkWatcher(options)`
+
+```ts
+function createNetworkWatcher(options?: WatcherOptions): NetworkWatcher
+```
+
+Creates a watcher. In a browser it starts listening at once and runs a first check, because startup counts as a suspect. Without `window` it returns a watcher that does nothing. Create one watcher per app and share it.
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({
+  pingUrl: '/api/ping',
+  onOffline: (state) => console.log('offline since', state.since),
+})
+```
+
+### Options
+
+All options are optional.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `pingUrl` | `string` | none | Same-origin HTTPS endpoint that answers `HEAD` with `204`. Without it only the browser signals and your reported requests are used, and `report(false)` is ignored. See the [ping endpoint guide](/docs/guides/ping-endpoint) |
+| `timeout` | `number` | `5000` | Probe timeout in milliseconds. A probe with no answer in this time counts as failed |
+| `maxRetryDelay` | `number` | `30000` | Ceiling of the retry backoff while offline, in milliseconds. Retries start at 2 seconds and double up to this value |
+| `heartbeat` | `number` | off | Interval in milliseconds for a probe while online and idle. Needs `pingUrl`. Skipped while the tab is hidden or the watcher is offline |
+| `rttBounds` | `RttBounds` | `[150, 400, 1400]` | Upper bounds in milliseconds of `excellent`, `good` and `fair`. Anything slower is `poor` |
+| `onOnline` | `(state: NetworkState) => void` | none | Called when the state flips to online |
+| `onOffline` | `(state: NetworkState) => void` | none | Called when the state flips to offline |
+
+`onOnline` and `onOffline` run only when `online` changes, and before any subscriber. If a callback throws, the other callbacks still run and the error is rethrown asynchronously.
+
+## Watcher methods
+
+`createNetworkWatcher` returns a `NetworkWatcher`.
+
+```ts
+interface NetworkWatcher {
+  getState: () => NetworkState
+  subscribe: (listener: NetworkListener) => () => void
+  check: () => Promise<NetworkState>
+  report: (ok: boolean, rtt?: number) => void
+  waitForOnline: () => Promise<NetworkState>
+  destroy: () => void
+}
+```
+
+The methods are plain closures, so you can pass them around unbound, for example `useSyncExternalStore(watcher.subscribe, watcher.getState)`.
+
+### `getState()`
+
+```ts
+getState(): NetworkState
+```
+
+Returns the current state. The same object reference is returned until a field changes.
+
+```ts
+const { online, quality, rtt } = watcher.getState()
+```
+
+### `subscribe(listener)`
+
+```ts
+subscribe(listener: (state: NetworkState, prev: NetworkState) => void): () => void
+```
+
+Calls `listener` whenever a field changes after rounding. It receives the new state and the previous one. It is not called for the current state on subscribe, so read `getState()` first if you need it. Returns a function that unsubscribes.
+
+```ts
+const stop = watcher.subscribe((state, prev) => {
+  if (state.quality !== prev.quality) console.log('quality is now', state.quality)
+})
+// later
+stop()
+```
+
+### `check()`
+
+```ts
+check(): Promise<NetworkState>
+```
+
+Decides now. If `navigator.onLine` is `false`, the watcher goes offline without a request. Without `pingUrl` it resolves to `navigator.onLine`. Otherwise it sends one probe. Concurrent calls share the probe that is already in flight. Use it before an action that must not fail, such as a payment.
+
+```ts
+const { online } = await watcher.check()
+if (!online) showMessage('Check your connection and try again.')
+```
+
+### `report(ok, rtt?)`
+
+```ts
+report(ok: boolean, rtt?: number): void
+```
+
+Gives the watcher evidence from outside: a request you made, a service worker, a native bridge. [`watchFetch`](#watchfetchwatcher-basefetch) calls it for you.
+
+- `report(true)` says a real request succeeded. The watcher goes online, unless `navigator.onLine` is `false`, which always wins. The optional `rtt` is the round-trip time in milliseconds and becomes a latency sample.
+- `report(false)` says a request failed. With a `pingUrl` it triggers a check, so one probe decides. Without a `pingUrl` it is ignored.
+
+```ts
+const start = performance.now()
+const res = await fetch('/api/items') // a request you do not wrap
+watcher.report(true, performance.now() - start)
+```
+
+### `waitForOnline()`
+
+```ts
+waitForOnline(): Promise<NetworkState>
+```
+
+Resolves with the state once the watcher is online. It resolves immediately if it already is. It never rejects, and it never resolves if you call `destroy()` first.
+
+```ts
+async function syncWhenOnline() {
+  await watcher.waitForOnline()
+  await fetch('/api/sync', { method: 'POST' })
+}
+```
+
+### `destroy()`
+
+```ts
+destroy(): void
+```
+
+Removes every event listener, the resource observer, the heartbeat and retry timers, and all subscribers. A probe already in flight finishes, and its result is discarded. Call it when the owner of a watcher you created goes away. You do not need it for `sharedWatcher()`.
+
+```ts
+watcher.destroy()
+```
+
+## `sharedWatcher()`
+
+```ts
+function sharedWatcher(): NetworkWatcher
+```
+
+Returns a lazily created default watcher with no options, so there is no `pingUrl`. The same instance is returned on every call. The framework adapters use it when you do not pass a watcher. If you need a `pingUrl`, create your own watcher and pass it to the adapter.
+
+```ts
+import { sharedWatcher } from '@net-watch/core'
+
+const watcher = sharedWatcher()
+console.log(watcher === sharedWatcher()) // true
+```
+
+## `watchFetch(watcher, baseFetch?)`
+
+```ts
+import { watchFetch } from '@net-watch/core/fetch'
+
+function watchFetch(watcher: NetworkWatcher, baseFetch?: typeof fetch): typeof fetch
+```
+
+Returns a function with the same signature as `fetch`. Use it in place of `fetch`, and your real requests become evidence:
+
+- A response, whatever its status, calls `watcher.report(true, ms)`. `ms` is the time to the response headers, not the full body.
+- A network failure (a `TypeError`) calls `watcher.report(false)`, then rethrows the error unchanged.
+- An aborted request (`AbortError`) is not reported.
+
+`baseFetch` defaults to the global `fetch`. Pass your own to wrap a custom client, or a mock in tests.
+
+```ts title="api.ts"
+import { watchFetch } from '@net-watch/core/fetch'
+import { watcher } from './network'
+
+export const api = watchFetch(watcher)
+
+const res = await api('/api/projects')
+```
+
+Do not assign the result to `window.fetch`. The probe uses the global `fetch`, and its requests would be counted twice. See the [watchFetch guide](/docs/guides/watch-fetch).
+
+## `createBanner(watcher, options?)`
+
+```ts
+import { createBanner } from '@net-watch/core/banner'
+
+function createBanner(
+  watcher: NetworkWatcher,
+  options?: BannerOptions,
+): { destroy: () => void; setTheme: (theme: BannerTheme) => void }
+```
+
+Creates a floating status banner and keeps it in sync with the watcher. It touches the DOM, so call it in the browser only, for example in an effect or after mount.
+
+- While offline it stays visible until the connection returns.
+- While `quality` is `poor` it shows `slowText`, but only if you set `slowText`. It hides as soon as quality leaves `poor`.
+- When the watcher comes back online it shows `onlineText`, then hides after `hideAfter` milliseconds.
+
+The element has `role="status"` and `data-state`, `data-theme` and `data-position` attributes. See the [banner guide](/docs/guides/banner) for theming.
+
+```ts
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+const banner = createBanner(watcher, {
+  slowText: 'Slow connection',
+  position: 'top',
+})
+
+banner.setTheme('dark')
+// when you no longer need it
+banner.destroy()
+```
+
+### `BannerOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `offlineText` | `string` | `'You are offline'` | Message while offline |
+| `onlineText` | `string` | `'Back online'` | Message after the connection returns |
+| `slowText` | `string` | unset | Message while `quality` is `poor`. If unset, the slow state is never shown |
+| `theme` | `'auto' \| 'light' \| 'dark'` | `'auto'` | `'auto'` follows `prefers-color-scheme`. `'light'` and `'dark'` force a palette |
+| `position` | `'top' \| 'bottom'` | `'bottom'` | Where the banner sits |
+| `hideAfter` | `number` | `3000` | Milliseconds the back-online message stays visible |
+| `container` | `HTMLElement` | `document.body` | Element the banner is appended to |
+
+### The banner handle
+
+| Member | Description |
+|---|---|
+| `destroy()` | Unsubscribes from the watcher and removes the element. It does not destroy the watcher |
+| `setTheme(theme)` | Switches the theme at runtime, for apps with their own dark-mode toggle |
+
+## Types
+
+The types are exported from `@net-watch/core`: `NetworkState`, `NetworkWatcher`, `NetworkListener`, `WatcherOptions`, `Quality`, `EffectiveType`, `ConnectionType` and `RttBounds`. The banner entry exports `BannerOptions` and `BannerTheme`. See the [state reference](/docs/reference/state) for their definitions.

@@ -1,0 +1,131 @@
+---
+title: Measure with watchFetch
+description: Turn your app's real requests into free latency samples and early warnings of a network failure.
+icon: Activity
+---
+
+Your app already sends requests. Every one of them says something about the connection: a response proves the user can reach a server, and a network error hints that they cannot. `watchFetch` wraps `fetch` so that evidence reaches the watcher without any extra request.
+
+```ts title="api.ts"
+import { watchFetch } from '@net-watch/core/fetch'
+import { watcher } from './network'
+
+export const api = watchFetch(watcher)
+
+const res = await api('/api/projects') // use it exactly like fetch
+```
+
+The signature is `watchFetch(watcher, baseFetch?)`. It returns a function with the same type as `fetch`, so it is a drop-in replacement.
+
+## What it reports
+
+| Outcome of the request | What `watchFetch` does |
+|---|---|
+| Any response, including `404` and `500` | `watcher.report(true, ms)`, where `ms` is the time until the response headers arrived. The response is returned as usual. |
+| `TypeError` (the network failed) | `watcher.report(false)`, then rethrows the error. |
+| `AbortError` (you aborted the request) | Nothing is reported. The error is rethrown. |
+| Any other error | Nothing is reported. The error is rethrown. |
+
+Your code sees exactly what `fetch` would have given it. `watchFetch` never swallows an error and never changes a response.
+
+A `5xx` still proves the network works: the request reached a server and a server answered. Whether the server is healthy is a different question, and net-watch does not try to answer it.
+
+Browsers throw a `TypeError` for network failures, with different messages in each engine (`Failed to fetch`, `NetworkError when attempting to fetch resource.`, `Load failed`). `watchFetch` checks the error type and never matches on the message.
+
+### A failure is a suspicion, not a verdict
+
+`report(false)` does not flip the watcher offline by itself. A `TypeError` also happens for reasons that have nothing to do with connectivity, such as a CORS failure. So the watcher treats it as a reason to check, and sends one probe to your `pingUrl`. The probe decides.
+
+Without a `pingUrl` there is nothing to confirm the failure, so `report(false)` is ignored. See [the ping endpoint guide](/docs/guides/ping-endpoint).
+
+A success is stronger evidence, with one exception: if the browser says `navigator.onLine` is `false`, a successful response does not bring the state back online. A response served from a service worker or the HTTP cache is not proof of a connection.
+
+## Why a slow backend can read as `poor`
+
+The sample `watchFetch` records is the time to the response headers: the network round trip plus whatever your server did before it started answering. It stops there, no matter how large the body is, so a big download does not look like a slow connection.
+
+But the server's own work is included. If an endpoint takes two seconds to compute, a few calls to it pull the smoothed `rtt` up, and `quality` can turn `poor` on a perfectly healthy network.
+
+Ways to deal with it:
+
+- Wrap only fast endpoints with `watchFetch`, and use plain `fetch` for slow ones such as reports and exports.
+- Keep one `watchFetch` and set `heartbeat` together with a `pingUrl`. The probe is a cheap request, so it pulls the average back toward the real network latency. See [the ping endpoint guide](/docs/guides/ping-endpoint#tune-the-probe).
+- Move slow work to a background job and poll a fast status endpoint.
+
+## Use your own baseFetch
+
+The second argument is the function that performs the request. It defaults to the global `fetch`. Pass your own to add headers, retries or a test double, and `watchFetch` measures everything around it:
+
+```ts title="api.ts"
+import { watchFetch } from '@net-watch/core/fetch'
+import { watcher } from './network'
+
+declare function getToken(): string
+
+const withAuth: typeof fetch = (input, init) => {
+  const headers = new Headers(init?.headers)
+  headers.set('Authorization', `Bearer ${getToken()}`)
+  return fetch(input, { ...init, headers })
+}
+
+export const api = watchFetch(watcher, withAuth)
+```
+
+The measured time includes the work done in `withAuth`, such as a token refresh. Keep that in mind if your `baseFetch` does something slow.
+
+## Wrap fetch, do not patch window.fetch
+
+It is tempting to write `window.fetch = watchFetch(watcher)` so every library is covered. Do not do that. The watcher's own probe calls the global `fetch`. A patched `fetch` would report each probe back to the watcher, so every probe would count twice.
+
+Create a wrapped function and import it where you need it.
+
+## Other HTTP clients
+
+Any client can feed the watcher through `watcher.report(ok, rtt?)`. Report `true` with a time in milliseconds when a server answered, and `false` when the request failed at the network level.
+
+Clients that run on `fetch` and accept a custom `fetch` function can take `watchFetch(watcher)` directly. Check your client's documentation for the option.
+
+For axios, use interceptors. Axios resolves a request only when the whole response has arrived, so the measured time includes the download. That is fine for small JSON calls. For large downloads, call `watcher.report(true)` without a time, so the sample does not make a good connection look slow.
+
+```ts title="http.ts"
+import axios, { type InternalAxiosRequestConfig } from 'axios'
+import { watcher } from './network'
+
+const startedAt = new WeakMap<InternalAxiosRequestConfig, number>()
+const elapsed = (config: InternalAxiosRequestConfig | undefined) => {
+  const start = config && startedAt.get(config)
+  return start === undefined ? undefined : performance.now() - start
+}
+
+export const http = axios.create({ baseURL: '/api' })
+
+http.interceptors.request.use((config) => {
+  startedAt.set(config, performance.now())
+  return config
+})
+
+http.interceptors.response.use(
+  (response) => {
+    watcher.report(true, elapsed(response.config))
+    return response
+  },
+  (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        watcher.report(true, elapsed(error.config)) // the server answered with an error status
+      } else if (error.code === 'ERR_NETWORK') {
+        watcher.report(false) // the request never reached a server
+      }
+      // Cancellations and timeouts are not reported
+    }
+    return Promise.reject(error)
+  },
+)
+```
+
+This follows the same rules as `watchFetch`: a response of any status counts as proof of a connection, a network failure counts as a suspicion, and a cancelled or timed-out request says nothing.
+
+## Next
+
+- [Add a ping endpoint](/docs/guides/ping-endpoint), so a reported failure can be confirmed.
+- [Network quality](/docs/concepts/network-quality): how samples become `rtt` and `quality`.

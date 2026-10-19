@@ -11,11 +11,12 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "example:vanilla": "pnpm --filter @net-watch/example-vanilla dev",
     "example:react": "pnpm --filter @net-watch/example-react dev",
+    "docs": "pnpm --filter @net-watch/docs dev",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "version-packages:beta": "changeset version --snapshot beta",
-    "release": "pnpm build && changeset publish",
-    "release:beta": "pnpm build && changeset publish --tag beta --no-git-tag"
+    "release": "turbo run build --filter='./packages/*' && changeset publish",
+    "release:beta": "turbo run build --filter='./packages/*' && changeset publish --tag beta --no-git-tag"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

@@ -1,0 +1,115 @@
+---
+title: Detecting offline
+description: The three layers of evidence, the rules that combine them, and what net-watch can and cannot detect.
+icon: WifiOff
+---
+
+net-watch decides `online` from three layers of evidence, cheapest first. This page lists them, the rules that combine them, and the limits. For the bigger picture, start with [How it works](/docs/concepts/how-it-works).
+
+## The three layers
+
+| Layer | Signal | Cost | Trust |
+|---|---|---|---|
+| 1. Browser signals | `navigator.onLine`, the `online` and `offline` events | 0 requests | `false` is reliable. `true` only means a network interface is up |
+| 2. Real requests | `watchFetch`, or `report()` called by you | 0 extra requests | A success proves you are online unless layer 1 says `false`. A network error is only a suspicion |
+| 3. The probe | One `HEAD` request to `pingUrl` | 1 request, only when needed | Confirms or refutes a suspicion |
+
+The probe uses `fetch` with `method: 'HEAD'`, `mode: 'no-cors'` and `cache: 'no-store'`. It counts any response as success, because with `no-cors` the status is not readable. A network error, or no answer within `timeout` (5 seconds by default), counts as failure.
+
+## The rules, in order
+
+1. **The `offline` event or `navigator.onLine === false` means offline, immediately.** No probe is sent. Layer 1 is reliable when it says `false`.
+2. **`report(true)` or a successful probe means online, unless `navigator.onLine` is `false`.** `navigator.onLine === false` always wins. A cache-backed response, from a service worker or the HTTP cache, can succeed while the browser is offline. That is not proof of connectivity.
+3. **A suspect starts a check, which sends one probe.** The suspects are listed below.
+4. **Without `pingUrl`, a check resolves at once to `navigator.onLine`,** and `report(false)` is ignored, because nothing can confirm it.
+5. **At most one probe is in flight.** `check()` during a probe returns the pending promise.
+6. **While offline with a `pingUrl`, the watcher retries with backoff:** 2 seconds, doubling, capped at `maxRetryDelay`. The delay resets when the watcher goes online. It also re-checks when the tab becomes visible or a page is restored from the cache, because iOS freezes timers in background tabs.
+7. **Online and idle sends zero requests** unless you opt in to `heartbeat`. There is no fixed-interval polling by default.
+8. **`heartbeat` (opt-in, needs `pingUrl`)** probes every `heartbeat` milliseconds when the watcher is online and the tab is visible.
+9. **`watchFetch` never reports an aborted request** (`AbortError`).
+
+## Suspects
+
+A suspect is a reason to doubt the current state. Each one triggers a check:
+
+| Suspect | When it happens |
+|---|---|
+| Startup | The watcher is created in a browser |
+| `report(false)` | A real request failed with a network error |
+| The `online` event | The browser says a connection came up |
+| `visibilitychange` to visible | The user returned to the tab |
+| `pageshow` from the back/forward cache | The page was restored from the cache |
+
+The `offline` event is not a suspect. It is a verdict, handled by rule 1.
+
+## What is detected, with and without `pingUrl`
+
+| Situation | Without `pingUrl` | With `pingUrl` |
+|---|---|---|
+| Wi-Fi switched off, cable unplugged, airplane mode | Detected (the browser reports it) | Detected, no probe needed |
+| Back online after the above | Detected through the `online` event | Detected, and a probe confirms it |
+| Wi-Fi connected, router has no internet | Not detected | Detected when the next check fails |
+| Captive portal | Not detected | Detected when `pingUrl` is HTTPS, because the portal breaks TLS and the probe fails |
+| Virtual adapter (Docker, VPN, Hyper-V) keeps `navigator.onLine` true | Not detected | Detected when the next check fails |
+| A network error from `watchFetch` | Ignored, nothing can confirm it | Triggers a probe |
+| Connection dies while the app is idle | Detected only if the browser notices | Detected on the next suspect, or within `heartbeat` ms if set |
+
+The short version: without `pingUrl`, net-watch trusts the browser's `false` and nothing else. The [ping endpoint guide](/docs/guides/ping-endpoint) shows how to add one.
+
+"The next check" means the next suspect or heartbeat. Detection is not instant, because net-watch does not poll. If you need a faster answer for one action, call `await watcher.check()` before it.
+
+## Reporting your own evidence
+
+`watchFetch` calls `report()` for you. Call it yourself for traffic that does not go through `fetch`: a WebSocket, a service worker message, a native bridge such as Capacitor.
+
+```ts
+import { createNetworkWatcher } from '@net-watch/core'
+
+const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+
+const socket = new WebSocket('wss://example.com/live')
+socket.addEventListener('open', () => watcher.report(true))
+socket.addEventListener('error', () => watcher.report(false))
+```
+
+- **`report(true)`** says a real request succeeded. The watcher goes online, unless `navigator.onLine` is `false`. Pass a second argument, the round-trip time in milliseconds, and it also becomes a latency sample: `watcher.report(true, 84)`.
+- **`report(false)`** says a request failed. It is a suspicion, not a verdict. With a `pingUrl` it triggers a check. Without one it does nothing.
+
+Do not call `report(false)` for HTTP errors such as 404 or 500. The server answered, so the user is online. `watchFetch` follows the same rule: any response counts as success, and only a network failure raises suspicion.
+
+## Why `navigator.onLine === false` always wins
+
+Success evidence can be stale or fake while the browser is offline. A service worker can answer from its cache. The HTTP cache can serve a stored response. A probe that was already in flight can resolve after the connection dropped. None of these prove the user can reach your server.
+
+So when the browser says `false`, net-watch stays offline and ignores `report(true)` and probe results until the browser says otherwise. The asymmetry is deliberate: `false` is reliable, `true` is not.
+
+## Backoff and heartbeat
+
+While offline, probes are spaced 2, 4, 8, 16, then 30 seconds apart (or `maxRetryDelay`, if you set it). This keeps a long outage cheap. Each retry sends a probe only if `navigator.onLine` is `true`. If it is still `false`, the retry confirms offline without sending a request.
+
+The heartbeat is for apps that need to notice a dead connection while the user is idle, for example a live dashboard.
+
+```ts
+const watcher = createNetworkWatcher({
+  pingUrl: '/api/ping',
+  heartbeat: 30_000,
+})
+```
+
+It skips hidden tabs and the offline state. It also refreshes `rtt` and `quality`. Most apps do not need it, because their real requests already feed the watcher.
+
+## What it cannot detect
+
+- **"Your server is down" versus "the user is offline".** The probe goes to `pingUrl`. If that endpoint is unreachable, the user looks offline, whatever the cause. Serve the ping route from infrastructure that stays up with your app, such as your edge or CDN.
+- **Other hosts.** A same-origin `pingUrl` proves the user can reach that origin. It says nothing about an API on another domain that a firewall blocks.
+- **HTTP errors.** The probe cannot read status codes, and any response counts as reachable. A server answering 500 still reads as online.
+- **Slow is not offline.** A connection that works but is painfully slow stays `online: true`. Use [`quality`](/docs/concepts/network-quality) for that.
+- **A dying connection between suspects.** Without a `heartbeat` or traffic, nothing looks at the connection until the next suspect.
+- **Without `pingUrl`, anything the browser does not report.** Router with no uplink, captive portals and virtual adapters all look online.
+- **Signal strength.** Web pages cannot read it in any browser.
+
+## Related
+
+- [Ping endpoint guide](/docs/guides/ping-endpoint): what to serve at `pingUrl`.
+- [watchFetch guide](/docs/guides/watch-fetch): turn every request into evidence.
+- [API reference](/docs/reference/api): `check`, `report` and `waitForOnline`.

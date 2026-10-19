@@ -7,6 +7,7 @@ Network-status library: a zero-dependency TypeScript core (online/offline detect
 - **Core change** (watcher, probe, metrics, fetch wrapper, banner, state shape, options, browser APIs) → [docs/architecture.md](docs/architecture.md). It is the contract; code follows it.
 - **Adapter or integration** (React, Vue, Angular, any new framework, Capacitor, service worker, TanStack Query) → [docs/adapters.md](docs/adapters.md).
 - **Layout, build and conventions** → [docs/architecture.md#repository-layout](docs/architecture.md#repository-layout).
+- **User-facing documentation site** (landing page, guides, API reference, AI prompts) → `apps/docs` (Fumadocs). Pages are MDX in `apps/docs/content/docs`; `pnpm docs` runs it.
 - **Branches, versions, publishing to npm (trunk-based, changesets, CI/CD)** → [docs/releasing.md](docs/releasing.md).
 
 ## Invariants
@@ -30,7 +31,7 @@ Every change keeps these. A change that needs to break one is a design change: u
 - Each package's `exports` comes from its tsdown build; edit `tsdown.config.ts` entries, then rebuild.
 - `pnpm typecheck` covers packages and apps; `pnpm example:vanilla` / `pnpm example:react` run the apps.
 - A change to a published package needs a changeset (`pnpm changeset`).
-- When behaviour or the public API changes, the docs and diagrams change with it. Diagram sources are `docs/diagrams/*.html`; re-export the `.svg` beside each with the diagram-design export script.
+- When behaviour or the public API changes, the docs and diagrams change with it: `docs/architecture.md` (the contract), the pages in `apps/docs/content/docs`, and the README. Diagram sources are `docs/diagrams/*.html`; re-export the `.svg` beside each with the diagram-design export script.
 
 ## Commands
 

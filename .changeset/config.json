@@ -7,5 +7,5 @@
   "baseBranch": "main",
   "snapshot": { "useCalculatedVersion": true },
   "updateInternalDependencies": "patch",
-  "ignore": ["@net-watch/example-vanilla", "@net-watch/example-react"]
+  "ignore": ["@net-watch/example-vanilla", "@net-watch/example-react", "@net-watch/docs"]
 }

@@ -1,0 +1,133 @@
+---
+title: Network quality
+description: How net-watch turns latency samples into a quality band, where downlink comes from, and what the browser cannot tell you.
+icon: Gauge
+---
+
+Online or offline is a yes or no. Quality is how usable the connection is. net-watch measures it from data the page already produces, and sends no test files.
+
+## Where the numbers come from
+
+| Field | Source |
+|---|---|
+| `rtt` | Probe round-trip times, `report(true, rtt)` (which `watchFetch` calls with time to first byte), and Chromium's `navigator.connection.rtt` |
+| `quality` | A band over the smoothed `rtt` |
+| `downlink` | Resource Timing entries of files the page downloaded, plus Chromium's `navigator.connection.downlink` |
+| `effectiveType`, `type`, `saveData` | `navigator.connection`, Chromium only |
+
+A value the browser does not expose stays `undefined`. net-watch never estimates one from something unrelated.
+
+## Latency: `rtt`
+
+Each latency sample goes into an exponentially weighted moving average (EWMA):
+
+```
+avg = 0.7 * avg + 0.3 * sample
+```
+
+The first sample seeds the average. Later samples move it by 30 percent of the gap, so one slow response nudges the value and a sustained change moves it. Chromium's `rtt` estimate counts as a sample when it is available and non-zero (zero means "no estimate" and is skipped).
+
+The state shows the average **rounded to the nearest 50 ms**. Rounding is why a stream of similar samples does not wake your listeners: they are only called when a visible field changes.
+
+One consequence of using your own requests: `watchFetch` measures **time to first byte** of your own requests, because `fetch` resolves when headers arrive. If you wrap an endpoint that takes two seconds on the server, those two seconds count as latency, and `quality` can read `poor` on a perfectly good network. Keep that in mind when you wrap slow endpoints. See the [watchFetch guide](/docs/guides/watch-fetch).
+
+## Quality bands
+
+`quality` classifies the smoothed RTT against three bounds. The defaults are `rttBounds: [150, 400, 1400]`.
+
+| Quality | Smoothed RTT |
+|---|---|
+| `excellent` | below 150 ms |
+| `good` | below 400 ms |
+| `fair` | below 1400 ms |
+| `poor` | 1400 ms or more |
+| `unknown` | No sample yet, or offline |
+
+Change the bounds with the `rttBounds` option. It is a tuple of three ascending numbers in milliseconds. A stricter app might use `[100, 250, 800]`.
+
+```ts
+import { createNetworkWatcher } from '@net-watch/core'
+
+const watcher = createNetworkWatcher({
+  pingUrl: '/api/ping',
+  rttBounds: [100, 250, 800],
+})
+```
+
+## Hysteresis
+
+A connection that hovers near a bound would flip between two bands on every sample, and a banner tied to `poor` would flicker. Hysteresis stops that with an asymmetric rule:
+
+- **Degrade immediately.** As soon as the smoothed RTT reaches a bound, quality moves to the worse band.
+- **Improve only below 0.8 times the bound.** To move back up, the RTT must fall clearly under the bound, not just touch it.
+
+Worked example with the default bounds. The band boundary between `good` and `fair` is 400 ms, so improving back to `good` requires below 0.8 x 400 = 320 ms.
+
+| Smoothed RTT | Quality | Why |
+|---|---|---|
+| 380 ms | `good` | Below 400 |
+| 420 ms | `fair` | Crossed 400, degrades at once |
+| 390 ms | `fair` | Below 400, but not below 320, so it stays |
+| 340 ms | `fair` | Still not below 320 |
+| 310 ms | `good` | Below 320, improves |
+
+The same rule applies at every bound: `excellent` returns below 120 ms, and `fair` returns from `poor` below 1120 ms. If the RTT falls far enough in one step, quality can jump more than one band. Going offline resets quality to `unknown`, so the first sample after coming back online sets the band directly, with no hysteresis.
+
+The band is computed from the unrounded average. The `rtt` you read is rounded to 50 ms, so do not recompute the band from it.
+
+## Download speed: `downlink`
+
+`downlink` is smoothed throughput in megabits per second, with the same EWMA. It is rounded to 0.1 Mbps below 10 and to whole Mbps from 10 up.
+
+net-watch does not download anything to measure it. It watches Resource Timing entries for resources the page loaded anyway, page-load assets included, and computes:
+
+```
+transferSize * 8 / (responseEnd - responseStart) / 1000   (Mbps)
+```
+
+An entry only counts when:
+
+- `transferSize` is at least **50,000 bytes**. Smaller responses are dominated by latency, not bandwidth.
+- It was not served from cache. Cached responses report a `transferSize` of 0.
+- It is not an opaque cross-origin response. Without a `Timing-Allow-Origin` header the browser reports 0.
+
+So `downlink` is `undefined` until your page has downloaded something large enough, such as a bundle, an image or an API payload. On Chromium, `navigator.connection.downlink` also feeds in as a sample, and gives a value early.
+
+Safari reports `transferSize` from version 16.4. Below that it reads 0, so no samples arrive and `downlink` stays `undefined` on Safari 15 to 16.3.
+
+## The other fields
+
+- **`effectiveType`**: `'slow-2g'`, `'2g'`, `'3g'` or `'4g'`, the browser's own classification. Chromium only. It is coarse and capped at `4g`, so use `quality` to tell good from great.
+- **`type`**: `'wifi'`, `'cellular'`, `'ethernet'` and so on. Only Chrome on Android and ChromeOS provide it. Everywhere else it is `undefined`.
+- **`saveData`**: `true` when the user turned on a data saver. Chromium only, and `false` in other browsers. Use it to skip heavy assets.
+
+These update when the browser fires a `change` event on `navigator.connection`. Firefox and Safari do not provide `navigator.connection`, so the three fields stay `undefined` (`saveData` stays `false`).
+
+```ts
+const { quality, effectiveType, saveData } = watcher.getState()
+
+const lowBandwidth = saveData || quality === 'poor' || effectiveType === '2g'
+```
+
+## What resets when you go offline
+
+When the watcher goes offline:
+
+- `quality` becomes `unknown`
+- `rtt` becomes `undefined`
+- `downlink` becomes `undefined`
+- the smoothed averages are thrown away, so old numbers never leak into the next session online
+- throughput samples are ignored until the watcher is back online
+
+`effectiveType`, `type` and `saveData` are not reset, because they describe what the browser reports about the link, not measurements.
+
+## What the browser cannot tell a web page
+
+**Signal strength is not available to web pages.** There is no API for Wi-Fi bars or cellular dBm in any browser, and net-watch will not invent one. `effectiveType` and `rtt` describe how the connection performs, which is usually what you care about. If you need radio-level data, you need a native app.
+
+net-watch also never runs a bandwidth test. If you want one, run it yourself on user request.
+
+## See also
+
+- [State reference](/docs/reference/state): every field with its type and browser support.
+- [Browser support](/docs/concepts/browser-support): which APIs each field depends on.

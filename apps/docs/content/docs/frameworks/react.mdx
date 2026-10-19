@@ -1,0 +1,154 @@
+---
+title: React
+description: Read the connection state in a React component with the useNetworkStatus hook.
+icon: Atom
+---
+
+`@net-watch/react` exports one hook, `useNetworkStatus`. It returns the current `NetworkState` and re-renders your component when the state changes. It needs React 18 or later.
+
+## Install
+
+```package-install
+npm i @net-watch/core @net-watch/react
+```
+
+## Minimal component
+
+```tsx title="Status.tsx"
+import { useNetworkStatus } from '@net-watch/react'
+
+export function Status() {
+  const { online, quality } = useNetworkStatus()
+  return <p>{online ? `Online, ${quality}` : 'Offline'}</p>
+}
+```
+
+Called without an argument, the hook uses the shared default watcher.
+
+## Pass your own watcher
+
+The signature is `useNetworkStatus(watcher?)`. The default, `sharedWatcher()` from `@net-watch/core`, is created on first use with default options, which means no `pingUrl`. Without a `pingUrl`, net-watch cannot see "connected but no internet" (see [the ping endpoint guide](/docs/guides/ping-endpoint)).
+
+To configure the watcher, create it once in a module and pass it in:
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+```tsx title="Status.tsx"
+import { useNetworkStatus } from '@net-watch/react'
+import { watcher } from './network'
+
+export function Status() {
+  const { online, quality } = useNetworkStatus(watcher)
+  return <p>{online ? `Online, ${quality}` : 'Offline'}</p>
+}
+```
+
+Use the same watcher everywhere: pass it to the hook, to `watchFetch` and to `createBanner`. Two watchers would send two sets of probes and could disagree.
+
+## Why useSyncExternalStore
+
+The hook is a single call to React's `useSyncExternalStore`, which is the built-in way to read a store that lives outside React. It avoids tearing (two components showing different values in one render) and works with concurrent rendering.
+
+It needs `getState()` to return the same object until something changes, and net-watch guarantees that: a change replaces the state object, and no change keeps the same reference. Without that guarantee React would see a new value on every read and loop.
+
+### Server snapshot
+
+On the server, and during hydration, the hook returns a fixed state: `online: true`, `quality: 'unknown'`, no metrics, `saveData: false`. React then switches to the real state after hydrating, so the server HTML always matches the first client render. See [SSR](/docs/guides/ssr).
+
+## Re-renders
+
+The hook returns the whole state object. A component using it re-renders only when something visible changes: `online`, `quality`, `rtt` (rounded to 50 ms), `downlink` (rounded to 0.1 Mbps below 10 Mbps, to whole Mbps above), `effectiveType`, `type` or `saveData`. A stream of similar latency samples does not cause renders.
+
+React has no selector in this hook. If a component reads only `online` and you want it to skip `rtt` updates, keep it small and put it in a leaf component, or subscribe to a single field yourself:
+
+```tsx title="OnlineDot.tsx"
+import { useSyncExternalStore } from 'react'
+import { watcher } from './network'
+
+export function OnlineDot() {
+  const online = useSyncExternalStore(
+    watcher.subscribe,
+    () => watcher.getState().online,
+    () => true, // server snapshot: the server state is always online
+  )
+  return <span aria-label={online ? 'Online' : 'Offline'}>{online ? '●' : '○'}</span>
+}
+```
+
+## A banner component
+
+`createBanner` is plain DOM. Create it in an effect and destroy it on cleanup:
+
+```tsx title="OfflineBanner.tsx"
+import { useEffect } from 'react'
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+export function OfflineBanner() {
+  useEffect(() => {
+    const banner = createBanner(watcher, { slowText: 'Slow connection' })
+    return () => banner.destroy()
+  }, [])
+
+  return null
+}
+```
+
+Render it once, near the root. See [the banner guide](/docs/guides/banner) for options and theming.
+
+## Show quality with rtt
+
+`quality` is `'excellent' | 'good' | 'fair' | 'poor' | 'unknown'`, and `rtt` is `undefined` until the first sample. Show a placeholder, and do not guess a value.
+
+```tsx title="ConnectionBadge.tsx"
+import { useNetworkStatus } from '@net-watch/react'
+import type { Quality } from '@net-watch/core'
+import { watcher } from './network'
+
+const labels: Record<Quality, string> = {
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  unknown: 'Measuring',
+}
+
+export function ConnectionBadge() {
+  const { online, quality, rtt } = useNetworkStatus(watcher)
+
+  if (!online) return <span>Offline</span>
+  return (
+    <span>
+      {labels[quality]}
+      {rtt !== undefined && ` (${rtt} ms)`}
+    </span>
+  )
+}
+```
+
+## Next.js
+
+Hooks only work in client components, so add `'use client'` to every file that calls `useNetworkStatus` or creates a banner. Import the watcher only from client components.
+
+```tsx title="components/status.tsx"
+'use client'
+
+import { useNetworkStatus } from '@net-watch/react'
+import { watcher } from '@/lib/network'
+
+export function Status() {
+  const { online } = useNetworkStatus(watcher)
+  return <p>{online ? 'Online' : 'Offline'}</p>
+}
+```
+
+Server components can render `<Status />`. The [SSR guide](/docs/guides/ssr#nextjs) has the full setup.
+
+## Next
+
+- [`watchFetch`](/docs/guides/watch-fetch): wrap your requests so the state stays fresh without extra probes.
+- [State reference](/docs/reference/state): every field and where it is available.

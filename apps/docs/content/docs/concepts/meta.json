@@ -1,0 +1,5 @@
+{
+  "title": "Concepts",
+  "icon": "Lightbulb",
+  "pages": ["why-net-watch", "how-it-works", "detecting-offline", "network-quality", "browser-support"]
+}

@@ -1,0 +1,126 @@
+---
+title: Angular
+description: Read the connection state in an Angular component with the injectNetworkStatus signal.
+icon: Triangle
+---
+
+`@net-watch/angular` exports one function, `injectNetworkStatus`. It returns a read-only `Signal<NetworkState>` that updates when the connection state changes. It needs Angular 17 or later.
+
+## Install
+
+```package-install
+npm i @net-watch/core @net-watch/angular
+```
+
+## Use it in a component
+
+```ts title="status.component.ts"
+import { Component } from '@angular/core'
+import { injectNetworkStatus } from '@net-watch/angular'
+import { watcher } from './network'
+
+@Component({
+  selector: 'app-status',
+  template: `
+    @if (status().online) {
+      <p>Online, {{ status().quality }} ({{ status().rtt ?? '?' }} ms)</p>
+    } @else {
+      <p>Offline</p>
+    }
+  `,
+})
+export class StatusComponent {
+  status = injectNetworkStatus(watcher)
+}
+```
+
+`status` is a signal, so call it: `status()`. It is read-only, so there is no `set` or `update`.
+
+## Injection context
+
+`injectNetworkStatus` calls `inject(DestroyRef)`, so it must run in an injection context: a constructor, a field initializer (as above), or a function you run with `runInInjectionContext`. Calling it from a method, a lifecycle hook or a timer throws.
+
+It subscribes to the watcher when called and unsubscribes through `DestroyRef` when the component (or the injector that owns it) is destroyed.
+
+## Pass your own watcher
+
+The signature is `injectNetworkStatus(watcher?)`. Without an argument it uses `sharedWatcher()` from `@net-watch/core`, which has no `pingUrl`. Without a `pingUrl`, net-watch cannot see "connected but no internet" (see [the ping endpoint guide](/docs/guides/ping-endpoint)).
+
+To configure the watcher, create it once in a module and pass it in, as above:
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+## Derived values
+
+Use `computed()` to derive values from the signal:
+
+```ts
+import { Component, computed } from '@angular/core'
+import { injectNetworkStatus } from '@net-watch/angular'
+import { watcher } from './network'
+
+@Component({
+  selector: 'app-quality',
+  template: `<span>{{ label() }}</span>`,
+})
+export class QualityComponent {
+  private status = injectNetworkStatus(watcher)
+
+  label = computed(() => {
+    const { online, quality, rtt } = this.status()
+    if (!online) return 'Offline'
+    return rtt === undefined ? 'Measuring' : `${quality} (${rtt} ms)`
+  })
+}
+```
+
+`rtt` is `undefined` until the first sample, and the code shows a placeholder instead of a guess.
+
+## Provide the watcher through DI
+
+A module-level `watcher` is the simplest option. If you prefer dependency injection, for example to replace the watcher in tests, provide it through an injection token:
+
+```ts title="network.token.ts"
+import { InjectionToken } from '@angular/core'
+import { createNetworkWatcher, type NetworkWatcher } from '@net-watch/core'
+
+export const NETWORK_WATCHER = new InjectionToken<NetworkWatcher>('NETWORK_WATCHER', {
+  providedIn: 'root',
+  factory: () => createNetworkWatcher({ pingUrl: '/api/ping' }),
+})
+```
+
+```ts title="status.component.ts"
+import { Component, inject } from '@angular/core'
+import { injectNetworkStatus } from '@net-watch/angular'
+import { NETWORK_WATCHER } from './network.token'
+
+@Component({
+  selector: 'app-status',
+  template: `<p>{{ status().online ? 'Online' : 'Offline' }}</p>`,
+})
+export class StatusComponent {
+  status = injectNetworkStatus(inject(NETWORK_WATCHER))
+}
+```
+
+A service works the same way: create the watcher in an `@Injectable({ providedIn: 'root' })` class and pass it to `injectNetworkStatus` from a component. In tests, provide a different value for `NETWORK_WATCHER`.
+
+The root watcher lives as long as the app. If you create one with a shorter life, call its `destroy()` yourself.
+
+## SSR
+
+On the server, `injectNetworkStatus` reads the fixed server state (`online: true`, `quality: 'unknown'`, metrics `undefined`). In the browser it reads the real state, which on Chromium may already include `rtt` and `quality`. Render quality-dependent UI after the first browser render, and create the banner in `afterNextRender` (a developer preview API before Angular 20). The [SSR guide](/docs/guides/ssr#angular) shows both.
+
+## Banner
+
+`createBanner` is plain DOM. See [the banner guide](/docs/guides/banner) for options and theming, and [SSR](/docs/guides/ssr#the-banner-needs-the-dom) for an Angular component that creates it safely.
+
+## Next
+
+- [`watchFetch`](/docs/guides/watch-fetch): wrap your requests so the state stays fresh without extra probes.
+- [State reference](/docs/reference/state): every field and where it is available.
