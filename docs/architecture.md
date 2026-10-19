@@ -41,7 +41,8 @@ net-watch/
 ├── apps/
 │   ├── demo-routes.ts           shared dev-server routes (/ping, /slow)
 │   ├── example-vanilla/
-│   └── example-react/
+│   ├── example-react/
+│   └── docs/                    @net-watch/docs: the documentation site (Next.js + Fumadocs), private
 └── docs/                        architecture.md adapters.md diagrams/
 ```
 
@@ -67,6 +68,7 @@ Commands:
 
 - `pnpm build`, `pnpm test`, `pnpm typecheck` run in every package through Turborepo; `pnpm --filter <name> <script>` runs one.
 - Core must be built before an adapter. Each adapter's `tsconfig.build.json` sets `paths: {}`, so its declaration build resolves `@net-watch/core` through core's `dist`, like a consumer would. Use `pnpm build` (Turborepo orders it) or `pnpm --filter ...@net-watch/react build`; building one adapter alone on a fresh clone fails.
+- `pnpm docs` starts the documentation site (`apps/docs`). It builds against the packages' `dist/`, so `pnpm docs` builds them first; its pages live in `apps/docs/content/docs` and are the user-facing counterpart of this contract.
 - `pnpm example:vanilla` and `pnpm example:react` start the apps. For a custom port: `pnpm --filter @net-watch/example-vanilla dev --port 5601`.
 
 ## Core modules

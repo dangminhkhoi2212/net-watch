@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@theme inline {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-plex-condensed), var(--font-plex-sans), ui-sans-serif, sans-serif;
+}
+
+/* The four states of a connection. The live demo and the page accent read these; nothing else has a brand colour. */
+:root {
+  --nw-good: #0f9d68;
+  --nw-slow: #b86e00;
+  --nw-bad: #d6393e;
+  --nw-idle: #6b7280;
+}
+.dark {
+  --nw-good: #3ddc97;
+  --nw-slow: #f5b83d;
+  --nw-bad: #ff6b6f;
+  --nw-idle: #9ca3af;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+/* Headings in docs and on the landing page use the condensed cut. */
+.font-display,
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-family: var(--font-display);
+}
+
+/* The trace in the live demo draws itself once per new sample; reduced-motion users get the finished line. */
+@keyframes nw-draw {
+  from {
+    stroke-dashoffset: var(--nw-len, 600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nw-trace {
+    stroke-dasharray: var(--nw-len, 600);
+    animation: nw-draw 700ms ease-out;
+  }
+}

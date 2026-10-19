@@ -1,0 +1,50 @@
+---
+title: Introduction
+description: net-watch tells your app whether the user can really reach the internet, and how good the connection is.
+icon: House
+---
+
+net-watch is a small TypeScript library that answers two questions in the browser:
+
+1. **Is the user really online?** Not "is a network interface up", but "can this page reach a server".
+2. **How good is the connection?** Latency, a quality band from `excellent` to `poor`, download speed, and what the browser knows about the link.
+
+It gives you one immutable state object, a way to subscribe to it, and an optional offline banner. The core has no dependencies. React, Vue and Angular get a tiny adapter each.
+
+```ts
+import { createNetworkWatcher } from '@net-watch/core'
+
+const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+
+watcher.subscribe((state) => {
+  console.log(state.online, state.quality, state.rtt) // true 'good' 150
+})
+```
+
+## Where to go next
+
+<Cards>
+  <Card title="Quick start" href="/docs/quick-start">
+    Install the package and get a working offline banner in a few minutes.
+  </Card>
+  <Card title="Why net-watch" href="/docs/concepts/why-net-watch">
+    What `navigator.onLine` gets wrong, and what existing libraries leave out.
+  </Card>
+  <Card title="How it works" href="/docs/concepts/how-it-works">
+    The signals, the probe and the state machine behind the single state object.
+  </Card>
+  <Card title="Use it with AI" href="/docs/ai/use-with-ai">
+    Ready-made prompts, `llms.txt`, and Markdown for every page.
+  </Card>
+</Cards>
+
+## Packages
+
+| Package | Use it for |
+|---|---|
+| `@net-watch/core` | The watcher, plus `@net-watch/core/fetch` (`watchFetch`) and `@net-watch/core/banner` (`createBanner`). No dependencies. |
+| `@net-watch/react` | `useNetworkStatus()` for React 18 and later. |
+| `@net-watch/vue` | `useNetworkStatus()` for Vue 3.3 and later. |
+| `@net-watch/angular` | `injectNetworkStatus()` for Angular 17 and later. |
+
+All four packages share one version number. They run in Chrome and Edge 90, Firefox 90 and Safari 15 or newer; see [browser support](/docs/concepts/browser-support).

@@ -1,0 +1,105 @@
+---
+title: Vue
+description: Read the connection state in a Vue component with the useNetworkStatus composable.
+icon: Component
+---
+
+`@net-watch/vue` exports one composable, `useNetworkStatus`. It returns a `ComputedRef<NetworkState>` that updates when the connection state changes. It needs Vue 3.3 or later.
+
+## Install
+
+```package-install
+npm i @net-watch/core @net-watch/vue
+```
+
+## Use it in a component
+
+```vue title="Status.vue"
+<script setup lang="ts">
+import { useNetworkStatus } from '@net-watch/vue'
+import { watcher } from './network'
+
+const status = useNetworkStatus(watcher)
+
+function logQuality() {
+  console.log(status.value.quality) // `.value` in script
+}
+</script>
+
+<template>
+  <p v-if="status.online">Online, {{ status.quality }} ({{ status.rtt ?? '?' }} ms)</p>
+  <p v-else>Offline</p>
+</template>
+```
+
+`status` is a computed ref. In `<script>` you read it with `.value`. In the template, Vue unwraps top-level refs, so `status.online` works without `.value`. The unwrapping applies to a ref that is a top-level binding, like `status` here. If you put the ref inside another object, such as `const ui = { status }`, the template sees the ref itself and `ui.status.online` fails: read `ui.status.value.online` instead, or keep the ref at the top level.
+
+## Pass your own watcher
+
+The signature is `useNetworkStatus(watcher?)`. Without an argument it uses `sharedWatcher()` from `@net-watch/core`, which has no `pingUrl`. Without a `pingUrl`, net-watch cannot see "connected but no internet" (see [the ping endpoint guide](/docs/guides/ping-endpoint)).
+
+To configure the watcher, create it once in a module and pass it in:
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+Use the same watcher for the composable, `watchFetch` and `createBanner`.
+
+## Derived values
+
+Because the result is a computed ref, you can derive from it with `computed`:
+
+```ts
+import { computed } from 'vue'
+
+const status = useNetworkStatus(watcher)
+const isSlow = computed(() => status.value.quality === 'poor')
+```
+
+## Cleanup
+
+- **In a component**, `useNetworkStatus` subscribes once the component has mounted and unsubscribes when it unmounts. It reads the state again at mount time, so a change between `setup` and mount is not missed. Because `onMounted` never runs while rendering on the server, a server render subscribes to nothing and leaves nothing behind.
+- **Outside a component**, inside an `effectScope()`, it subscribes at once and unsubscribes when you stop the scope.
+- **Outside any scope**, for example at module level, there is nothing to dispose it with, so it never unsubscribes. That is fine for app-wide state that lives as long as the page, but do not call it in a function that runs many times outside a component.
+
+<Callout type="warn" title="Server rendering with 0.1.0">
+Version 0.1.0 subscribed during `setup`. Vue does not dispose component scopes on the server, so every server render leaked one listener on the watcher. This is fixed in the releases after 0.1.0, so if you render Vue or Nuxt on the server, upgrade.
+</Callout>
+
+## Banner
+
+`createBanner` is plain DOM. Create it in `onMounted` and destroy it in `onUnmounted`:
+
+```vue title="App.vue"
+<script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+let banner: ReturnType<typeof createBanner> | undefined
+
+onMounted(() => {
+  banner = createBanner(watcher, { slowText: 'Slow connection' })
+})
+
+onUnmounted(() => {
+  banner?.destroy()
+})
+</script>
+```
+
+See [the banner guide](/docs/guides/banner) for options and theming.
+
+## Nuxt
+
+Create the watcher in a plain module, such as `utils/network.ts`, and import it from components. Importing and creating a watcher on the server is safe: it returns a fixed state (`online: true`, `quality: 'unknown'`) and starts no listeners or timers.
+
+On Chromium, the first client render can differ from the server render, because `navigator.connection` may already hold values when the watcher is created. Render quality-dependent UI after mount, or wrap it in `<ClientOnly>`. Create the banner in `onMounted`, which Nuxt runs only in the browser. See [SSR](/docs/guides/ssr#vue-and-nuxt).
+
+## Next
+
+- [`watchFetch`](/docs/guides/watch-fetch): wrap your requests so the state stays fresh without extra probes.
+- [State reference](/docs/reference/state): every field and where it is available.

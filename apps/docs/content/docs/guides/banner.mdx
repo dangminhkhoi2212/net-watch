@@ -1,0 +1,182 @@
+---
+title: Offline banner
+description: Show a floating banner for offline, slow and back-online states with one function call, and theme it with CSS variables.
+icon: PanelBottom
+---
+
+`createBanner` adds a small floating card to the page that follows the watcher. It is plain DOM, so it works in any framework, and it does not need an adapter.
+
+```ts
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+const banner = createBanner(watcher, { slowText: 'Slow connection' })
+
+// later, for example when your app unmounts
+banner.destroy()
+```
+
+## What it shows
+
+| State | When | How long it stays |
+|---|---|---|
+| Offline | The watcher reports `online: false`. | Until the user is back online. |
+| Slow | The user is online, `quality` is `poor`, and you set `slowText`. | While `quality` stays `poor`. Leaving `poor` hides it at once. |
+| Online | The user came back after being offline. | Shows `onlineText`, then hides after `hideAfter` ms. |
+
+The banner stays hidden while everything is fine. It does not announce "online" when the page first loads. If the page loads while the user is already offline (or already `poor` with `slowText` set), the banner shows right away.
+
+Without `slowText`, the slow state never appears. That keeps the default quiet: a `poor` connection is not a failure, and not every app wants to say so.
+
+## Options
+
+All options are optional.
+
+| Option | Default | What it does |
+|---|---|---|
+| `offlineText` | `'You are offline'` | Text for the offline state. |
+| `onlineText` | `'Back online'` | Text shown after the connection returns. |
+| `slowText` | unset | Text for the slow state. Leave it unset to never show that state. |
+| `theme` | `'auto'` | `'auto'` follows `prefers-color-scheme`. `'light'` and `'dark'` force a palette. |
+| `position` | `'bottom'` | `'top'` or `'bottom'`. Respects the device safe area (the notch and the home indicator). |
+| `hideAfter` | `3000` | How many ms the back-online message stays visible. |
+| `container` | `document.body` | The element the banner is appended to. |
+
+```ts
+createBanner(watcher, {
+  offlineText: 'No connection. Changes will sync later.',
+  onlineText: 'Connected again',
+  slowText: 'Slow connection',
+  position: 'top',
+  hideAfter: 2000,
+})
+```
+
+## The handle
+
+`createBanner` returns an object with two methods:
+
+- `destroy()` removes the banner element and unsubscribes from the watcher. Call it when your app or component goes away. The shared `<style>` element stays in the page, so other banners keep working.
+- `setTheme(theme)` switches between `'auto'`, `'light'` and `'dark'` at runtime. Use it if your app has its own theme toggle.
+
+```ts
+const banner = createBanner(watcher)
+
+themeToggle.addEventListener('change', () => {
+  banner.setTheme(themeToggle.checked ? 'dark' : 'light')
+})
+```
+
+## Theming with CSS variables
+
+The banner's colours are four CSS variables, set on the banner element for each state:
+
+| Variable | Controls |
+|---|---|
+| `--netwatch-bg` | Background. |
+| `--netwatch-fg` | Text and icon colour. |
+| `--netwatch-accent` | The coloured left border. |
+| `--netwatch-icon` | The icon. It is a `url(...)` used as a CSS mask, so the icon takes the text colour. |
+
+The banner has the class `.netwatch-banner` and three data attributes you can target:
+
+| Attribute | Values |
+|---|---|
+| `data-state` | `offline`, `slow`, `online` |
+| `data-theme` | `auto`, `light`, `dark` |
+| `data-position` | `top`, `bottom` |
+
+Override the variables for one state with a single rule:
+
+```css title="app.css"
+.netwatch-banner[data-state='offline'] {
+  --netwatch-bg: #fff0f0;
+  --netwatch-fg: #7a1f1f;
+  --netwatch-accent: #d92d20;
+}
+
+.netwatch-banner[data-state='slow'] {
+  --netwatch-icon: url('/icons/turtle.svg');
+}
+
+/* Only when the dark palette is forced */
+.netwatch-banner[data-theme='dark'][data-state='offline'] {
+  --netwatch-bg: #3a1212;
+}
+```
+
+You can also restyle the card itself:
+
+```css
+.netwatch-banner {
+  max-width: 40rem;
+  border-radius: 0;
+  font-size: 16px;
+}
+```
+
+The default styles use `:where()`, which gives them zero specificity. Any rule you write wins without `!important`, whatever order the stylesheets load in. The one exception is the `hidden` state: `.netwatch-banner[hidden]` uses `display: none !important`, so a `display` rule of yours cannot keep a hidden banner visible.
+
+With `theme: 'auto'`, the dark palette applies inside `@media (prefers-color-scheme: dark)`. Your own rules still win over it.
+
+## Accessibility
+
+The banner has `role="status"`, a polite live region. Screen readers announce each text change without interrupting what the user is doing. The element is hidden with the `hidden` attribute when there is nothing to say, so it is not in the accessibility tree then.
+
+The entrance animation is turned off for users who prefer reduced motion.
+
+## Use it in a framework
+
+The banner needs `document`, so create it after the component mounts and destroy it on cleanup. See [SSR](/docs/guides/ssr#the-banner-needs-the-dom) for why.
+
+<Tabs items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx title="OfflineBanner.tsx"
+import { useEffect } from 'react'
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+export function OfflineBanner() {
+  useEffect(() => {
+    const banner = createBanner(watcher, { slowText: 'Slow connection' })
+    return () => banner.destroy()
+  }, [])
+
+  return null
+}
+```
+
+Render `<OfflineBanner />` once, near the root of your app. React Strict Mode runs the effect twice in development, which is safe: the first banner is destroyed before the second is created.
+
+</Tab>
+<Tab value="Vue">
+
+```vue title="App.vue"
+<script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+let banner: ReturnType<typeof createBanner> | undefined
+
+onMounted(() => {
+  banner = createBanner(watcher, { slowText: 'Slow connection' })
+})
+
+onUnmounted(() => {
+  banner?.destroy()
+})
+</script>
+
+<template>
+  <!-- your app -->
+</template>
+```
+
+Put this in your root component, or in a component you render once near the root.
+
+</Tab>
+</Tabs>
+
+For Angular, call `createBanner` from a component's `afterNextRender` callback; the [SSR guide](/docs/guides/ssr#the-banner-needs-the-dom) shows it.

@@ -1,0 +1,153 @@
+---
+title: SSR and hydration
+description: What net-watch does on the server, and how to avoid hydration mismatches in React, Next.js, Vue, Nuxt and Angular.
+icon: Server
+---
+
+Importing any net-watch module and creating a watcher works without `window`. Nothing touches the DOM or the network at import time, so server rendering does not need guards around your watcher.
+
+## What the server sees
+
+A watcher created on the server has no browser to look at, so it returns a fixed state:
+
+```ts
+{
+  online: true,
+  since: /* a timestamp */,
+  quality: 'unknown',
+  rtt: undefined,
+  downlink: undefined,
+  effectiveType: undefined,
+  type: undefined,
+  saveData: false,
+}
+```
+
+It adds no event listeners and starts no timers, and `check()` resolves with that state without sending a request. The server always renders "online, quality unknown", which is also the right first guess for the browser.
+
+This means a module-scope watcher is safe in a server file:
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+## Hydration
+
+Server HTML must match the first client render. The danger is a client that already knows more than the server did. On Chromium, `navigator.connection` can be filled in when the watcher is created, so the first client state may already have an `rtt`, a `quality` and an `effectiveType`. It can also say `online: false` if the user opens the page offline.
+
+How each adapter handles this:
+
+- **React** passes a server snapshot to `useSyncExternalStore`. During hydration React renders with the server state, then switches to the real state right after. There is no mismatch, only a brief first paint that says online.
+- **Vue and Angular** read `getState()` on the first client render. On Chromium that value can differ from the server's, which causes a hydration mismatch if your template depends on it.
+
+The fix for Vue and Angular is the same: render anything that depends on quality, `rtt` or `online` after mount. Until then, show the server-safe version.
+
+## Next.js
+
+Create the watcher in a client module, and mark every component that uses a hook as a client component.
+
+```ts title="lib/network.ts"
+'use client'
+
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+```tsx title="components/status.tsx"
+'use client'
+
+import { useNetworkStatus } from '@net-watch/react'
+import { watcher } from '@/lib/network'
+
+export function Status() {
+  const { online, quality } = useNetworkStatus(watcher)
+  return <p>{online ? `Online, ${quality}` : 'Offline'}</p>
+}
+```
+
+Import `watcher` only from client components. A watcher is an object with functions, so a server component cannot pass it to a client component as a prop.
+
+Server components can render `<Status />` as usual. The HTML says "Online, unknown", and the browser updates it after hydration.
+
+## Vue and Nuxt
+
+Render quality-dependent UI after the component mounts.
+
+```vue title="Status.vue"
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { useNetworkStatus } from '@net-watch/vue'
+import { watcher } from './network'
+
+const status = useNetworkStatus(watcher)
+const mounted = ref(false)
+onMounted(() => {
+  mounted.value = true
+})
+</script>
+
+<template>
+  <p v-if="mounted">{{ status.online ? `Online, ${status.quality}` : 'Offline' }}</p>
+  <p v-else>Online</p>
+</template>
+```
+
+In Nuxt, you can instead wrap the part that depends on connection state in `<ClientOnly>`. Use `useNetworkStatus` inside components, and put `createBanner` in `onMounted`.
+
+## Angular
+
+Angular's `injectNetworkStatus` reads the state when the component is created. On the server that is the fixed server state. In the browser it is the real one, so avoid structure that depends on it until the first render has finished. Set a flag from `afterNextRender`, which runs only in the browser (it is a developer preview API before Angular 20):
+
+```ts title="status.component.ts"
+import { Component, afterNextRender, signal } from '@angular/core'
+import { injectNetworkStatus } from '@net-watch/angular'
+import { watcher } from './network'
+
+@Component({
+  selector: 'app-status',
+  template: `
+    @if (ready()) {
+      <p>{{ status().online ? 'Online, ' + status().quality : 'Offline' }}</p>
+    } @else {
+      <p>Online</p>
+    }
+  `,
+})
+export class StatusComponent {
+  status = injectNetworkStatus(watcher)
+  ready = signal(false)
+
+  constructor() {
+    afterNextRender(() => this.ready.set(true))
+  }
+}
+```
+
+## The banner needs the DOM
+
+`createBanner` reads `document` as soon as you call it, so it throws on the server. Create it where only the browser runs code: an effect in React, `onMounted` in Vue, `afterNextRender` in Angular. The [banner guide](/docs/guides/banner#use-it-in-a-framework) has the React and Vue versions. For Angular:
+
+```ts title="offline-banner.component.ts"
+import { Component, DestroyRef, afterNextRender, inject } from '@angular/core'
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+@Component({ selector: 'app-offline-banner', template: '' })
+export class OfflineBannerComponent {
+  constructor() {
+    const destroyRef = inject(DestroyRef)
+    afterNextRender(() => {
+      const banner = createBanner(watcher, { slowText: 'Slow connection' })
+      destroyRef.onDestroy(() => banner.destroy())
+    })
+  }
+}
+```
+
+## Next
+
+- [React](/docs/frameworks/react), [Vue](/docs/frameworks/vue) and [Angular](/docs/frameworks/angular) pages for the adapter details.
+- [State reference](/docs/reference/state): which fields are `undefined` where.

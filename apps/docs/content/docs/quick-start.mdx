@@ -1,0 +1,154 @@
+---
+title: Quick start
+description: Install net-watch, watch the connection and show an offline banner in a few minutes.
+icon: Rocket
+---
+
+<Steps>
+<Step>
+
+### Install
+
+```package-install
+npm i @net-watch/core
+```
+
+For a framework adapter, install it next to core: `@net-watch/react`, `@net-watch/vue` or `@net-watch/angular`.
+
+</Step>
+<Step>
+
+### Create a watcher
+
+Create one watcher for the whole app and keep it in a module.
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({
+  pingUrl: '/api/ping', // optional: lets net-watch confirm the user can really reach your server
+})
+```
+
+Without `pingUrl`, net-watch still reacts when the browser reports that the network is gone, and it treats a successful request as proof that you are online. It cannot confirm a failed request, so "connected to Wi-Fi but no internet" goes unnoticed. The [ping endpoint guide](/docs/guides/ping-endpoint) shows how to add one in a few lines.
+
+</Step>
+<Step>
+
+### Read the state
+
+```ts
+const { online, quality, rtt } = watcher.getState()
+
+const stop = watcher.subscribe((state, previous) => {
+  if (!state.online) console.log('offline since', new Date(state.since))
+})
+// later: stop()
+```
+
+`getState()` returns the same object until something changes, so it is safe to use with `useSyncExternalStore` and signals.
+
+</Step>
+<Step>
+
+### Measure with your real requests
+
+Wrap `fetch` once. Every response becomes a free latency sample, and a network error makes net-watch check the connection.
+
+```ts
+import { watchFetch } from '@net-watch/core/fetch'
+import { watcher } from './network'
+
+export const api = watchFetch(watcher)
+
+const res = await api('/api/projects') // use it like fetch
+```
+
+</Step>
+<Step>
+
+### Show a banner
+
+```ts
+import { createBanner } from '@net-watch/core/banner'
+import { watcher } from './network'
+
+createBanner(watcher, { slowText: 'Slow connection' })
+```
+
+The banner appears when the user goes offline, shows a message while the connection is `poor`, and, after a loss of connection, says "Back online" for a few seconds. See [the banner guide](/docs/guides/banner) for text, position and theming.
+
+</Step>
+</Steps>
+
+## In your framework
+
+<Tabs items={['React', 'Vue', 'Angular']}>
+<Tab value="React">
+
+```package-install
+npm i @net-watch/core @net-watch/react
+```
+
+```tsx title="Status.tsx"
+import { useNetworkStatus } from '@net-watch/react'
+import { watcher } from './network'
+
+export function Status() {
+  const { online, quality, rtt } = useNetworkStatus(watcher)
+  return <p>{online ? `Online, ${quality} (${rtt ?? '?'} ms)` : 'Offline'}</p>
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```package-install
+npm i @net-watch/core @net-watch/vue
+```
+
+```vue title="Status.vue"
+<script setup lang="ts">
+import { useNetworkStatus } from '@net-watch/vue'
+import { watcher } from './network'
+
+const status = useNetworkStatus(watcher)
+</script>
+
+<template>
+  <p v-if="status.online">Online, {{ status.quality }} ({{ status.rtt ?? '?' }} ms)</p>
+  <p v-else>Offline</p>
+</template>
+```
+
+</Tab>
+<Tab value="Angular">
+
+```package-install
+npm i @net-watch/core @net-watch/angular
+```
+
+```ts title="status.component.ts"
+import { Component } from '@angular/core'
+import { injectNetworkStatus } from '@net-watch/angular'
+import { watcher } from './network'
+
+@Component({
+  selector: 'app-status',
+  template: `<p>{{ status().online ? 'Online, ' + status().quality : 'Offline' }}</p>`,
+})
+export class StatusComponent {
+  status = injectNetworkStatus(watcher)
+}
+```
+
+</Tab>
+</Tabs>
+
+The adapters default to a shared watcher without `pingUrl`. Pass your own watcher, as above, to configure it.
+
+## What next
+
+- [Add a ping endpoint](/docs/guides/ping-endpoint) so "connected but no internet" is detected.
+- [Learn how it decides](/docs/concepts/how-it-works) online from offline, and why it sends so few requests.
+- [Read the state reference](/docs/reference/state) for every field and which browsers provide it.

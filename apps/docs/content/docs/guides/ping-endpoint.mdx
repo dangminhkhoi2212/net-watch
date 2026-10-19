@@ -1,0 +1,168 @@
+---
+title: Add a ping endpoint
+description: Give net-watch a tiny same-origin URL to probe, so it can tell "connected to Wi-Fi" from "can reach the internet".
+icon: Radar
+---
+
+`navigator.onLine` only says a network interface is up. A hotel Wi-Fi that needs a login, a router that lost its uplink and a dead VPN all report `true`. The only way to see these cases is to send a request and check that it comes back.
+
+`pingUrl` is where that request goes. net-watch sends one `HEAD` request to it, only when it has a reason to doubt the connection: at startup, when the tab becomes visible, after a failed request, and while the user is offline.
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({ pingUrl: '/api/ping' })
+```
+
+<Callout type="warn" title="Without pingUrl, some outages are invisible">
+Without `pingUrl` the library cannot see "connected but no internet". It still detects a lost interface (Wi-Fi off, cable out), and a successful request still marks the user online. But a failed request is ignored, because nothing can confirm it. Add a ping endpoint if you want the offline state to be trustworthy.
+</Callout>
+
+## What makes a good endpoint
+
+- **Same origin.** You learn that the user can reach your server, which is what your app needs. It also avoids CORS and CSP changes.
+- **HTTPS.** See [why HTTPS matters](#why-https-matters).
+- **Answers `HEAD` with `204` and `Cache-Control: no-store`.** No body, nothing to cache.
+- **No auth.** The probe must work for signed-out users and expired sessions.
+- **Never cached by a service worker or a CDN.** A cached answer always succeeds, so the probe would report online forever. See [the service worker trap](#the-service-worker-trap).
+- **Cheap.** It does no database work and no logging you would not want at one request per user per page visit.
+
+The probe treats any HTTP response as success, including a `404` or a `500`: the request reached a server, so the user is online. Only a network error or a timeout counts as failure. Still return `204`, so the endpoint stays clear about its purpose.
+
+## Copy-paste implementations
+
+<Tabs items={['Next.js', 'Express', 'nginx', 'Cloudflare Worker']}>
+<Tab value="Next.js">
+
+```ts title="app/api/ping/route.ts"
+export const dynamic = 'force-dynamic'
+
+const headers = { 'Cache-Control': 'no-store' }
+
+export function GET() {
+  return new Response(null, { status: 204, headers })
+}
+
+export function HEAD() {
+  return new Response(null, { status: 204, headers })
+}
+```
+
+</Tab>
+<Tab value="Express">
+
+```js title="server.js"
+app.get('/ping', (_req, res) => {
+  res.set('Cache-Control', 'no-store').status(204).end()
+})
+```
+
+Express answers `HEAD` through the `GET` route, so one handler is enough. Register it before any auth middleware.
+
+</Tab>
+<Tab value="nginx">
+
+```nginx title="nginx.conf"
+location = /ping { add_header Cache-Control no-store; return 204; }
+```
+
+</Tab>
+<Tab value="Cloudflare Worker">
+
+```ts title="worker.ts"
+export default {
+  fetch(request: Request): Response {
+    if (new URL(request.url).pathname === '/ping') {
+      return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } })
+    }
+    return new Response('Not found', { status: 404 })
+  },
+}
+```
+
+Route the Worker to `yoursite.com/ping` so the endpoint stays on the same origin as your app.
+
+If you only host static files, add a small file such as `ping.txt` and set `Cache-Control: no-store` for that path in your host's headers config. The probe sends `HEAD`, so the file body is never downloaded. A real `204` is still cleaner when your host can do it.
+
+</Tab>
+</Tabs>
+
+## Why HTTPS matters
+
+A captive portal (the login page of a hotel or airport network) intercepts requests and answers them itself. Over plain HTTP it can return a fake `200`, and the probe would think the user is online. Over HTTPS the portal cannot present a valid certificate for your domain, so the TLS handshake fails, the request fails, and net-watch reports offline. That is the correct answer: the user cannot reach your server.
+
+## No backend? Use the gstatic endpoint
+
+If you cannot add a route, `https://www.gstatic.com/generate_204` is a public endpoint that answers `204`.
+
+```ts
+const watcher = createNetworkWatcher({ pingUrl: 'https://www.gstatic.com/generate_204' })
+```
+
+It has real costs, so treat it as a fallback and not a default:
+
+- It is blocked in some regions and on some corporate networks. Users there would always look offline.
+- Every user's IP address is sent to Google.
+- With a Content-Security-Policy you must allow it: `connect-src https://www.gstatic.com`.
+
+## CORS
+
+The probe uses `mode: 'no-cors'` and ignores the response. A cross-origin `pingUrl` therefore works without any CORS headers: the request succeeds if it reaches the server, and net-watch never reads the answer. The price is that you only learn that the other host is reachable, not that your own server is.
+
+## The service worker trap
+
+A service worker sits between the page and the network. If its fetch handler uses a cache-first or stale-while-revalidate strategy for every request, it can answer the probe from the cache. The probe then succeeds while the user has no connection.
+
+Let the probe skip the worker:
+
+```js title="sw.js"
+self.addEventListener('fetch', (event) => {
+  if (new URL(event.request.url).pathname === '/ping') return // not handled, so the browser uses the network
+  // ...your caching strategies
+})
+```
+
+With Workbox, register the ping route with the `NetworkOnly` strategy. The same rule applies to any CDN rule that caches by path: exclude the ping route.
+
+Browsers also keep a cache of their own. The probe sends `cache: 'no-store'`, so the HTTP cache does not answer it.
+
+## Tune the probe
+
+All three options are on `createNetworkWatcher`:
+
+| Option | Default | What it does |
+|---|---|---|
+| `timeout` | `5000` | How long one probe may take, in ms. A probe that takes longer counts as a failure. Raise it only if your endpoint is slow, because a long timeout delays the offline state. |
+| `maxRetryDelay` | `30000` | While offline, net-watch probes again after 2 s, then 4 s, 8 s and so on, up to this ceiling in ms. Lower it for a faster recovery, at the cost of more requests while offline. |
+| `heartbeat` | off | Probe every `heartbeat` ms while the user is online and the tab is visible. Off by default, so an online, idle app sends no requests. Turn it on if you need to notice a connection that dies while nothing else is happening. It also keeps `rtt` and `quality` fresh. Needs `pingUrl`. |
+
+```ts
+createNetworkWatcher({
+  pingUrl: '/api/ping',
+  timeout: 4000,
+  maxRetryDelay: 15_000,
+  heartbeat: 60_000, // one probe a minute per visible tab
+})
+```
+
+## Test it
+
+Check the endpoint from a terminal:
+
+```bash
+curl -I https://yoursite.com/ping
+# HTTP/2 204
+# cache-control: no-store
+```
+
+Then test the behaviour in the browser:
+
+1. **No interface.** In DevTools, open Network and choose Offline. The banner or your UI shows offline at once, with no probe. Note that this tests the `navigator.onLine` layer, not the endpoint.
+2. **Interface up, no internet.** In DevTools, block the request URL of your ping route (the "Network request blocking" panel in Chromium), then reload. The startup probe fails and the state flips to offline even though `navigator.onLine` is `true`. Unblock it and the next retry brings the state back online.
+
+On a real machine, a virtual adapter (Docker, a VPN, Hyper-V) can keep `navigator.onLine` at `true` with Wi-Fi switched off. That is the case the probe exists for.
+
+## Next
+
+- [How detection works](/docs/concepts/detecting-offline): the three signal layers and when each probe fires.
+- [`watchFetch`](/docs/guides/watch-fetch): turn your real requests into free evidence, so the probe fires even less often.

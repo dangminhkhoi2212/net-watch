@@ -1,0 +1,126 @@
+---
+title: Integrations
+description: Feed Capacitor, a service worker or any other source into net-watch with watcher.report(), and drive TanStack Query from it.
+icon: Plug
+---
+
+net-watch has one input for evidence from outside the browser's own signals: `watcher.report(ok, rtt?)`. Report `true` when something proves a server answered, and `false` when something suggests the network failed.
+
+<Callout type="info">
+Everything on this page is a recipe you copy into your app. None of it ships as a module. The recipes assume `watcher` is your app's watcher, from `createNetworkWatcher()` or `sharedWatcher()` in `@net-watch/core`.
+</Callout>
+
+## How report() behaves
+
+Know these rules before you wire a source in:
+
+- `report(true)` marks the user online, unless `navigator.onLine` is `false`. A success never overrides an offline browser.
+- `report(true, ms)` also adds `ms` as a latency sample.
+- `report(false)` is a suspicion. With a `pingUrl` it triggers one probe, and the probe decides. Without a `pingUrl` it is ignored.
+
+## Capacitor
+
+`@capacitor/network` reports the operating system's view of connectivity. Forward it to the watcher:
+
+```ts title="native-network.ts"
+import { Network } from '@capacitor/network'
+import { watcher } from './network'
+
+Network.addListener('networkStatusChange', (status) => {
+  watcher.report(status.connected)
+})
+```
+
+With a `pingUrl`, a `false` report makes the watcher check, and it sends a probe to confirm. Without a `pingUrl` a `false` report is ignored, because nothing could confirm it. A `true` report makes the watcher go online unless the web view says otherwise. Ionic apps use the same code.
+
+## A service worker
+
+A service worker sees every request the page makes, including ones from axios and images, which `watchFetch` never sees. Send its network results to the page and report them there.
+
+<Callout type="warn">
+Do not ship a second service worker for this. Add the code to the worker your app already has. Also exclude your ping URL from every cache, or the probe always succeeds: see [the service worker trap](/docs/guides/ping-endpoint#the-service-worker-trap).
+</Callout>
+
+Report only what the network did. A response served from a cache is not evidence.
+
+```js title="sw.js"
+async function notify(online) {
+  for (const client of await self.clients.matchAll()) {
+    client.postMessage({ type: 'net-watch', online })
+  }
+}
+
+// Call this wherever your strategy goes to the network
+async function fromNetwork(request) {
+  try {
+    const response = await fetch(request)
+    notify(true)
+    return response
+  } catch (error) {
+    notify(false)
+    throw error
+  }
+}
+```
+
+```ts title="register-sw.ts"
+import { watcher } from './network'
+
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data?.type === 'net-watch') watcher.report(event.data.online)
+})
+```
+
+Each request sends one message to every open tab. For a busy app, send at most one message per second, or only when the result differs from the last one.
+
+## TanStack Query
+
+Here the data flows the other way: net-watch tells Query whether the app is online, so queries pause while offline and resume when the connection returns.
+
+```ts title="query-client.ts"
+import { onlineManager } from '@tanstack/react-query' // also exported by @tanstack/query-core
+import { watcher } from './network'
+
+// Replace Query's own online/offline listeners, so net-watch is the only source.
+onlineManager.setEventListener((setOnline) => {
+  setOnline(watcher.getState().online)
+  return watcher.subscribe((state) => setOnline(state.online))
+})
+```
+
+`setEventListener` swaps out Query's default listeners, so browser events no longer write to Query's online state behind net-watch's back. Because net-watch confirms the connection with a probe, Query follows "can reach the server" and not just `navigator.onLine`.
+
+## Electron and Tauri
+
+The renderer of an Electron app and the web view of a Tauri app are browsers. Core works unchanged, with the same `createNetworkWatcher` and `pingUrl`. Make sure the web view's engine meets the [browser floor](/docs/concepts/browser-support).
+
+## Wait for the connection before a retry
+
+`waitForOnline()` returns a promise that resolves when the watcher is online, and resolves at once if it already is. Use it to hold a retry until the user is back.
+
+`waitForOnline()` alone is not enough right after a failed request: the watcher may still say online for a moment, and the promise would resolve instantly. Call `check()` first, which settles the state, then wait.
+
+```ts title="save.ts"
+import { watchFetch } from '@net-watch/core/fetch'
+import { watcher } from './network'
+
+const api = watchFetch(watcher)
+
+export async function save(body: string, attempts = 3): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await api('/api/save', { method: 'POST', body })
+    } catch (error) {
+      if (!(error instanceof TypeError) || attempt >= attempts) throw error
+      await watcher.check() // settle the state after the failure
+      await watcher.waitForOnline() // hold until the connection is back
+    }
+  }
+}
+```
+
+This recipe needs a `pingUrl`. Without one, `check()` answers from `navigator.onLine` at once, so a failed request on a connection that is only half working would retry immediately instead of waiting.
+
+`waitForOnline()` has no timeout. If you need one, race it against a timer.
+
+Only retry requests that are safe to repeat. A `POST` that reached the server before the connection dropped may run twice, unless your API uses idempotency keys.

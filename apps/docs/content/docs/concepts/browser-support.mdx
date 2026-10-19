@@ -1,0 +1,71 @@
+---
+title: Browser support
+description: The support floor, which platform APIs net-watch uses, and the browser quirks it handles for you.
+icon: Globe
+---
+
+net-watch runs in **Chrome and Edge 90, Firefox 90, and Safari and iOS 15**, and anything newer. Every platform API in core is checked against that floor. An API that a floor browser lacks is either not used, or used only as a hint with a fallback.
+
+The tests run in real browsers, not a simulated DOM: the suite runs in Vitest browser mode on Playwright's Chromium, Firefox and WebKit.
+
+## What works where
+
+| API | Chrome / Edge | Firefox | Safari / iOS | Role in net-watch |
+|---|---|---|---|---|
+| `navigator.onLine`, `online` / `offline` events | Yes | Yes | Yes | Required. Layer 1 |
+| `visibilitychange`, `pageshow` | Yes | Yes | Yes | Required. Suspects that trigger a check. `pageshow` covers cache restores on iOS |
+| `fetch` with HEAD, `no-cors`, `no-store` | Yes | Yes | Yes | Required. The probe |
+| `AbortController`, `performance.now()` | Yes | Yes | Yes | Required. Probe timeout and round-trip time |
+| `PerformanceObserver` for `resource` entries | Yes | Yes | Yes | Hint. Source of `downlink` |
+| `PerformanceResourceTiming.transferSize` | Yes | Yes | 16.4 and later | Hint. Below 16.4 it reads 0, so no samples and `downlink` stays `undefined` |
+| `navigator.connection` | Yes | No | No | Hint. Every field falls back to `undefined` (`saveData` to `false`) |
+| CSS `:where()` | 88 and later | 78 and later | 14 and later | Banner defaults with zero specificity, so your CSS wins |
+| `AbortSignal.timeout` | 103 and later | 100 and later | 16 and later | Not used |
+
+"Required" APIs exist in every floor browser, and the core depends on them. "Hint" APIs enrich the state when present. Their absence never breaks detection, it only leaves a field `undefined`.
+
+### What each field needs
+
+| Field | Chrome / Edge | Firefox | Safari / iOS |
+|---|---|---|---|
+| `online`, `since` | Yes | Yes | Yes |
+| `quality`, `rtt` | Yes | Yes | Yes, once a sample exists |
+| `downlink` | Yes | Yes | 16.4 and later |
+| `effectiveType`, `saveData` | Yes | `undefined`, `false` | `undefined`, `false` |
+| `type` | Chrome on Android and ChromeOS only | `undefined` | `undefined` |
+
+The [state reference](/docs/reference/state) has the full table.
+
+## Quirks the library handles
+
+You do not need to work around these, but knowing them explains some of the design.
+
+### Network errors have different messages
+
+A failed `fetch` throws a `TypeError` in every engine, with a different message: `Failed to fetch` in Chromium, `NetworkError when attempting to fetch resource.` in Firefox, `Load failed` in Safari. Matching on the message would break in two of three browsers, so `watchFetch` checks `err instanceof TypeError` and never reads the text.
+
+### iOS freezes timers in background tabs
+
+Safari on iOS freezes JavaScript timers in background tabs. A retry timer set while offline may not fire on time, or until the tab is visible again. net-watch does not rely on timers alone. It re-checks on `visibilitychange` when the tab becomes visible and on `pageshow` when a page is restored from the back/forward cache.
+
+### Virtual adapters keep `navigator.onLine` true
+
+Docker, VPN clients and Hyper-V install virtual network adapters. With them present, `navigator.onLine` can stay `true` after you switch Wi-Fi off. That is the main reason a `pingUrl` exists, and the reason net-watch only trusts `false`. To test your offline UI, use DevTools, Network, Offline. Switching Wi-Fi off on a development machine can mislead you.
+
+### No `AbortSignal.timeout`
+
+`AbortSignal.timeout()` arrived in Safari 16, and the floor is Safari 15. The probe uses an `AbortController` and a `setTimeout` instead, which works everywhere.
+
+### Syntax target
+
+The package builds to `es2020`, so newer syntax such as `??=` is lowered for the floor browsers.
+
+## Not supported
+
+- Browsers below the floor. They may work, but they are not tested.
+- Non-browser runtimes. Importing the package works anywhere, because it is [SSR-safe](/docs/guides/ssr), but detection only runs where `window` exists. For React Native, use `@react-native-community/netinfo`.
+
+## See also
+
+- [Detecting offline](/docs/concepts/detecting-offline): how the layers combine.
+- [Network quality](/docs/concepts/network-quality): where `downlink` comes from.
