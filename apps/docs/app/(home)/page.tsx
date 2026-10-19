@@ -6,12 +6,15 @@ import { CopyCommand } from '@/components/home/copy-button';
 import { LiveAccent } from '@/components/home/live-accent';
 import { Telemetry } from '@/components/home/telemetry';
 import { Prompt } from '@/components/prompt';
-import { description, gitConfig, npmUrl, tagline } from '@/lib/shared';
+import { JsonLd } from '@/components/json-ld';
+import { appName, description, gitConfig, npmUrl, siteUrl, tagline } from '@/lib/shared';
 
 export const metadata: Metadata = {
   title: { absolute: 'net-watch: know when your users are really offline' },
   description,
-  openGraph: { title: 'net-watch', description: tagline },
+  alternates: { canonical: '/' },
+  // A page-level openGraph replaces the layout's, which drops the app/opengraph-image file, so the image is named here.
+  openGraph: { title: 'net-watch', description: tagline, url: '/', images: '/opengraph-image' },
 };
 
 const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6';
@@ -123,6 +126,32 @@ function Section({ id, title, children }: { id?: string; title: string; children
 export default async function HomePage() {
   return (
     <LiveAccent>
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@graph': [
+            { '@type': 'WebSite', name: appName, url: siteUrl, description },
+            {
+              '@type': 'SoftwareSourceCode',
+              name: appName,
+              description,
+              url: siteUrl,
+              codeRepositoryUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+              programmingLanguage: 'TypeScript',
+              license: 'https://opensource.org/licenses/MIT',
+              author: { '@type': 'Person', name: gitConfig.user, url: `https://github.com/${gitConfig.user}` },
+            },
+            {
+              '@type': 'SoftwareApplication',
+              name: appName,
+              applicationCategory: 'DeveloperApplication',
+              operatingSystem: 'Web',
+              url: npmUrl,
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+            },
+          ],
+        }}
+      />
       <main className="flex-1">
         <div className={`${containerClass} grid items-start gap-10 py-12 md:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-14`}>
           <div className="lg:pt-6">

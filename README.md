@@ -1,14 +1,51 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/dangminhkhoi2212/net-watch/main/docs/assets/logo.svg" alt="net-watch logo" width="56" height="56" />
+
 # net-watch
 
-Answers two questions for any web app:
+**Know when your users are really offline, and how good their connection is.**
 
-1. **Is the user really online?** Not just "Wi-Fi is on", but actually able to reach your server.
-2. **How good is the connection?** Quality band, latency, throughput, and the link info the browser exposes.
+Zero-dependency network status for the web, with adapters for React, Vue and Angular.
 
-Zero-dependency core, thin adapters for React, Vue and Angular. Works in Chrome/Edge 90+, Firefox 90+ and Safari/iOS 15+.
+[![npm](https://img.shields.io/npm/v/@net-watch/core?color=0e9f6e&label=npm)](https://www.npmjs.com/package/@net-watch/core)
+[![CI](https://github.com/dangminhkhoi2212/net-watch/actions/workflows/ci.yml/badge.svg)](https://github.com/dangminhkhoi2212/net-watch/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@net-watch/core?color=blue)](LICENSE)
+[![types](https://img.shields.io/npm/types/@net-watch/core)](https://www.npmjs.com/package/@net-watch/core)
+
+[Documentation](https://net-watch-docs.vercel.app) · [Live demo](https://net-watch-docs.vercel.app) · [Quick start](https://net-watch-docs.vercel.app/docs/quick-start) · [API reference](https://net-watch-docs.vercel.app/docs/reference/api)
+
+<img src="https://raw.githubusercontent.com/dangminhkhoi2212/net-watch/main/docs/assets/demo.gif" alt="net-watch live demo: latency and quality update as requests slow down, the banner warns about a slow connection, then reports offline and back online" width="720" />
+
+</div>
+
+## Why net-watch
+
+`navigator.onLine` only says a network interface is up. It stays `true` behind a captive portal, a router with no internet, or a blocked server. net-watch answers two questions instead:
+
+1. **Is the user really online?** Not just "Wi-Fi is on", but able to reach your server.
+2. **How good is the connection?** Quality band, latency, throughput and the link info the browser exposes.
+
+| Situation | `navigator.onLine` | net-watch |
+|---|---|---|
+| Wi-Fi connected, router has no internet | online | **offline** |
+| Hotel Wi-Fi waiting for a sign-in page | online | **offline** |
+| Your server is down or blocked | online | **offline** |
+| In a tunnel: connected, every request takes seconds | online | online, quality **poor** |
+| Airplane mode | offline | offline |
+
+## Features
+
+- **Real offline detection** from three layers: browser signals, your own requests, and an optional probe. An online, idle app sends no requests unless you opt into `heartbeat`.
+- **Connection quality**: smoothed `rtt`, `quality` (`excellent`, `good`, `fair`, `poor`) and `downlink`. A metric the browser does not expose stays `undefined`, never a guess.
+- **`watchFetch`**: your real requests become free measurements.
+- **Offline banner** with a light and a dark look, recoloured with CSS variables.
+- **Framework adapters** for React, Vue and Angular. Each is about ten lines over the core.
+- **Small and safe**: core is under 3 kB gzipped, has no dependencies, is SSR-safe and ships its own types.
+- **Cross-browser**: Chrome/Edge 90+, Firefox 90+, Safari/iOS 15+.
 
 ```bash
-pnpm add @net-watch/core                    # core
+pnpm add @net-watch/core                    # core (or npm i / yarn add)
 pnpm add @net-watch/core @net-watch/react   # React (same for vue / angular)
 ```
 

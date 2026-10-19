@@ -84,6 +84,14 @@ Both publishing steps in `.github/workflows/release.yml` already pass the secret
 
 Limits to know: npm announced that direct publishing with granular tokens is being removed in January 2027 (stage-only tokens and `npm stage publish` remain), and from August 2026 bypass-2FA tokens can no longer perform account-identity actions. Do not build a long-term pipeline on a token. Source: https://docs.npmjs.com/about-access-tokens
 
+## Docs site deployment (Vercel)
+
+The documentation site (`apps/docs`) deploys through Vercel's GitHub integration, not through a GitHub Actions workflow, so it needs no token in the repository:
+
+- **Pull request or any other branch**: every push builds a preview deployment, and the Vercel bot comments the preview URL on the PR. Previews sit behind Vercel Authentication, so open them while signed in to the Vercel account that owns the project.
+- **Push to `main`** (a merged PR): builds production at https://net-watch-docs.vercel.app. The Version Packages PR also goes through this path once merged.
+- Settings (root directory `apps/docs`, install and build commands, Node 24, `ENABLE_EXPERIMENTAL_COREPACK=1`, protection on previews only) are listed in [apps/docs/README.md](../apps/docs/README.md#deploy). To reconnect the repository, use Vercel, Project Settings, Git.
+
 ## Security notes
 
 - Every action in `.github/workflows/` is pinned to a full commit SHA with the version in a trailing comment; Dependabot (`.github/dependabot.yml`) opens weekly PRs to bump them. Never replace a SHA by a tag.
