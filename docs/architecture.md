@@ -13,7 +13,7 @@ net-watch answers two questions:
 
 ## Repository layout
 
-A pnpm + Turborepo workspace of four published packages (the dnd-kit layout), ESM only. Shared dev-tooling versions live in one pnpm `catalog:` (`pnpm-workspace.yaml`).
+A pnpm + Turborepo workspace of four published packages (the dnd-kit layout). `core`, `react` and `vue` build ESM and CommonJS (`format: ['esm', 'cjs']` in `tsdown.config.ts`, so `exports` gets `import` and `require` conditions); `angular` is ESM only. `packages/core/tests/exports.node.test.ts` requires and imports every built entry in Node, with `require(esm)` switched off, to keep both formats working. TypeScript's old `node10` resolution (TS 5 and below) ignores `exports`, so core keeps a hand-written `typesVersions` for its `fetch` and `banner` subpaths and angular builds with `exports: { legacy: true }` to get `main`/`module`/`types`. Check them with `attw --pack` and `tsc --moduleResolution node10` on TypeScript 5 when you change entries. Shared dev-tooling versions live in one pnpm `catalog:` (`pnpm-workspace.yaml`).
 
 ```
 net-watch/

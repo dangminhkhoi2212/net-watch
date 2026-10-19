@@ -6,5 +6,6 @@ export default defineConfig({
   target: 'es2020',
   dts: true,
   tsconfig: 'tsconfig.build.json',
-  exports: true,
+  // `legacy` also writes main/module/types, which TypeScript's node10 resolution (TS 5 and below) needs.
+  exports: { legacy: true },
 })
