@@ -4,10 +4,14 @@ import { PlatformTabs } from '@/components/platform-tabs';
 import { baseOptions } from '@/lib/layout.shared';
 
 export default function Layout({ children }: LayoutProps<'/docs'>) {
+  const options = baseOptions();
+  // The AI section is in the sidebar tree, so the "Use with AI" link would only repeat it here. The home page keeps it.
+  const links = options.links?.filter((link) => !('text' in link && link.text === 'Use with AI'));
+
   return (
     // The platform list replaces Fumadocs' dropdown. Each platform is a `root: true` folder in content/docs, which is
     // what limits the sidebar tree to that platform's pages.
-    <DocsLayout tree={source.getPageTree()} tabs={false} sidebar={{ banner: <PlatformTabs /> }} {...baseOptions()}>
+    <DocsLayout tree={source.getPageTree()} tabs={false} sidebar={{ banner: <PlatformTabs /> }} {...options} links={links}>
       {children}
     </DocsLayout>
   );

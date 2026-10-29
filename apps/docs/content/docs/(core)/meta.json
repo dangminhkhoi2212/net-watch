@@ -2,5 +2,5 @@
   "title": "JavaScript",
   "description": "Framework-agnostic core: @net-watch/core",
   "root": true,
-  "pages": ["index", "quick-start", "concepts", "guides", "reference", "ai"]
+  "pages": ["ai", "index", "quick-start", "concepts", "guides", "reference"]
 }
