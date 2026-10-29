@@ -1,0 +1,84 @@
+---
+title: Angular with AI
+description: Rules and ready-made prompts for adding net-watch to an Angular app with an AI coding assistant.
+icon: Sparkles
+---
+
+AI coding assistants write better Angular code when they read the real docs instead of guessing from memory. This page has rules for your repo and prompts that are specific to Angular. For the general setup (`llms.txt`, Markdown pages and what to give an assistant), see [Use net-watch with AI](/docs/ai/use-with-ai).
+
+## Rules for AGENTS.md, CLAUDE.md or Cursor rules
+
+Add this to your rules file, next to the general net-watch rules from the [AI page](/docs/ai/use-with-ai#rules-for-agentsmd-claudemd-or-cursor-rules). Replace `YOUR-SITE` with the address of this docs site.
+
+```md title="AGENTS.md"
+## net-watch with Angular
+
+This app uses `@net-watch/angular` on top of `@net-watch/core`.
+
+- Before writing net-watch code, read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/llms.txt. Do not rely on memory.
+- Read the state with `injectNetworkStatus(watcher)` from `@net-watch/angular`. It returns a read-only signal: call it as `status()`. Never build online state with `navigator.onLine` or the `online` and `offline` events yourself.
+- `injectNetworkStatus` must run in an injection context: a constructor, a field initializer, or `runInInjectionContext`. Never call it from a method, a lifecycle hook or a timer.
+- Use one watcher for the app. A module-level `watcher` is simplest; to swap it in tests, provide it through an `InjectionToken` and pass `inject(NETWORK_WATCHER)`.
+- Create the banner in `afterNextRender` so it never runs on the server.
+- It needs Angular 17 or later.
+- Only use options and fields that appear in the docs. Never invent an option.
+```
+
+## Ready-made prompts
+
+Copy a prompt and paste it into your assistant. The address of this docs site is filled in on the deployed site (on a local copy it shows `YOUR-SITE`: replace it by hand).
+
+<Prompt title="Add net-watch to my Angular app">
+{`Add net-watch to this Angular project. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/docs/quick-start.md first, and follow the docs, not your memory. Do not invent options or fields.
+
+1. Install @net-watch/core and @net-watch/angular with the package manager the project already uses. Angular must be version 17 or later.
+2. Create ONE watcher in its own module with createNetworkWatcher({ pingUrl: '/api/ping' }), or use the project's existing health route as pingUrl. If the project prefers dependency injection, provide it through an InjectionToken with providedIn root instead.
+3. Create a standalone StatusComponent with a field initializer: status = injectNetworkStatus(watcher). It returns a read-only signal, so call status() in the template. Show online or offline, plus the quality and the rtt in ms when they are known.
+4. Wrap the app's HTTP calls with watchFetch(watcher) from @net-watch/core/fetch where the project uses fetch. For HttpClient, report results to the watcher from an interceptor with watcher.report(true, ms) and watcher.report(false).
+5. Create the offline banner with createBanner from @net-watch/core/banner inside afterNextRender, and destroy it with DestroyRef.
+6. If Angular SSR is enabled, render quality-dependent UI after the first browser render.
+7. If there is no ping route, add one that answers HEAD and GET with 204 and Cache-Control: no-store.
+
+Make the smallest change that works, run the type checker and the tests, and tell me which files you changed.`}
+</Prompt>
+
+<Prompt title="Add a connection status badge">
+{`Add a connection status badge to this Angular app with net-watch. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/docs/reference/state.md first.
+
+- Reuse the app's existing watcher. If there is none, stop and tell me, instead of creating a second one.
+- Use a standalone component with a field initializer: status = injectNetworkStatus(watcher). It must run in an injection context, so never call it from a method or a lifecycle hook. The result is a read-only signal: call status().
+- Show Offline when online is false. When online, show the quality (excellent, good, fair, poor, unknown) and the rtt in ms.
+- rtt, downlink and effectiveType can be undefined. Show a placeholder, never an estimate.
+- With Angular SSR the server renders quality as unknown. Render the quality part after the first browser render, so the server and the first client render match.
+- Do not add polling, timers or manual online and offline listeners.
+
+Run the type checker when you are done.`}
+</Prompt>
+
+<Prompt title="Review my Angular net-watch setup">
+{`Review how this Angular project uses net-watch. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/llms-full.txt first and compare the code with the docs. Report problems, do not change code yet.
+
+Check each item and answer pass or fail with the file and line:
+1. The watcher is created once, in one module or one InjectionToken factory, and not inside a component or a method.
+2. injectNetworkStatus is called only in an injection context (constructor or field initializer), never in a method, a lifecycle hook or a timer.
+3. Templates call the signal as status(). Nothing reads navigator.onLine or listens to the online and offline events directly.
+4. createBanner runs in afterNextRender and is destroyed with DestroyRef.
+5. With Angular SSR, quality-dependent UI renders after the first browser render.
+6. pingUrl is set, points to a same-origin HTTPS endpoint, and the endpoint answers HEAD with 204 and Cache-Control: no-store. It is not cached by a service worker, a CDN or a proxy.
+7. No manual polling: no setInterval or setTimeout that checks navigator.onLine or calls the ping URL.
+8. No invented options or fields. Every option and state field exists in the docs.
+
+End with a list of fixes ordered by impact.`}
+</Prompt>
+
+## Tips
+
+- **Say which Angular version you use.** Control flow with @if needs Angular 17, and afterNextRender was a developer preview API before Angular 20.
+- **Say which version you use.** Run `npm ls @net-watch/angular` and include the version in your prompt.
+- **Ask it to run the type checker.** A wrong option name fails `tsc` right away, which catches the most common mistake.
+- **Review the ping endpoint yourself.** Check that it is not cached and runs before auth, or the app would look online forever.
+
+## Next
+
+- [Angular guide](/docs/angular): the full reference for `injectNetworkStatus`.
+- [Use net-watch with AI](/docs/ai/use-with-ai): the general setup, `llms.txt` and prompts that are not framework specific.

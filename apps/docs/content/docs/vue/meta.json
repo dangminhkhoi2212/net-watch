@@ -4,6 +4,7 @@
   "root": true,
   "pages": [
     "index",
+    "use-with-ai",
     "---Related---",
     "[Quick start](/docs/quick-start)",
     "[Measure with watchFetch](/docs/guides/watch-fetch)",
