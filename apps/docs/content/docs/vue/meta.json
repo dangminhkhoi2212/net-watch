@@ -1,0 +1,16 @@
+{
+  "title": "Vue",
+  "description": "@net-watch/vue",
+  "root": true,
+  "pages": [
+    "index",
+    "---Related---",
+    "[Quick start](/docs/quick-start)",
+    "[Measure with watchFetch](/docs/guides/watch-fetch)",
+    "[Offline banner](/docs/guides/banner)",
+    "[SSR and hydration](/docs/guides/ssr)",
+    "[Integrations](/docs/guides/integrations)",
+    "[API reference](/docs/reference/api)",
+    "[State reference](/docs/reference/state)"
+  ]
+}
