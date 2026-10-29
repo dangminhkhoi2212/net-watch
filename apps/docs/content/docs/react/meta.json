@@ -11,6 +11,7 @@
     "[Offline banner](/docs/guides/banner)",
     "[SSR and hydration](/docs/guides/ssr)",
     "[Integrations](/docs/guides/integrations)",
+    "[TanStack Query](/docs/guides/tanstack-query)",
     "[API reference](/docs/reference/api)",
     "[State reference](/docs/reference/state)"
   ]

@@ -1,0 +1,34 @@
+---
+title: Electron and Tauri
+description: Use net-watch in the renderer of an Electron app or the web view of a Tauri app, and the few things that differ from a website.
+icon: AppWindow
+---
+
+The renderer of an Electron app and the web view of a Tauri app are browsers. `@net-watch/core` and the framework adapters work unchanged, with the same `createNetworkWatcher` and `pingUrl`. There is nothing to install in the main process.
+
+## What is different from a website
+
+- **The page may not be on your server's origin.** An app that loads from `file://` or a custom protocol has no server behind a relative `pingUrl` such as `/ping`. Use an absolute `https://` URL that points at your backend. The probe uses `mode: 'no-cors'`, so it works without CORS headers, but you then learn that the host is reachable. See [the CORS section](/docs/guides/ping-endpoint#cors) of the ping endpoint guide.
+- **The engine decides which metrics you get.** Electron runs Chromium, so the Chromium-only fields (`effectiveType`, `saveData`) are normally available. Tauri uses the operating system's web view: WebView2 (Chromium) on Windows, WebKit on macOS and Linux. On WebKit those fields are `undefined`, as in Safari. The state always tells you: an unavailable metric is `undefined`, never a guess.
+- **Check the engine version.** Tauri uses whatever web view the user's system has, so make sure it meets the [browser floor](/docs/concepts/browser-support).
+
+## Use it like on the web
+
+```ts title="network.ts"
+import { createNetworkWatcher } from '@net-watch/core'
+
+export const watcher = createNetworkWatcher({
+  pingUrl: 'https://api.example.com/ping', // absolute: the app is not on this origin
+})
+```
+
+Everything else is the same as on a website: wrap requests with [`watchFetch`](/docs/guides/watch-fetch), read the state with the adapter for your framework, and create the [banner](/docs/guides/banner) after the page loads.
+
+## Native connectivity
+
+If you also want the operating system's view of connectivity, forward it with `watcher.report()`, as the [Capacitor recipe](/docs/guides/integrations#capacitor) does. Report `false` only as a suspicion: with a `pingUrl` the probe decides.
+
+## Next
+
+- [Browser support](/docs/concepts/browser-support): which engines provide which metrics.
+- [Integrations](/docs/guides/integrations): other sources you can feed into net-watch.
