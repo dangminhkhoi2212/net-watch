@@ -22,17 +22,6 @@ export const source = loader({
   baseUrl: docsRoute,
   source: docs.toFumadocsSource(),
   plugins: [lucideIconsPlugin()],
-  pageTree: {
-    transformers: [
-      {
-        // The platform tab already says "React", so its first page reads "Overview" in the sidebar. The page keeps its own title.
-        file(node, filePath) {
-          if (filePath && /^(react|vue|angular)\/index\.mdx$/.test(filePath)) node.name = 'Overview';
-          return node;
-        },
-      },
-    ],
-  },
 });
 
 export const docsLlms = llms(source, {

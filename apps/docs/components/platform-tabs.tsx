@@ -76,6 +76,7 @@ export function PlatformTabs() {
           <Link
             key={platform.name}
             href={platform.href}
+            data-platform-tab=""
             aria-current={active ? 'page' : undefined}
             className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors ${
               active ? 'bg-fd-primary/10 text-fd-primary' : 'text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground'
