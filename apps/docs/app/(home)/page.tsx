@@ -34,6 +34,31 @@ const situations: { title: string; detail: string; browser: string; netWatch: st
   { title: 'Airplane mode', detail: 'The one case the browser gets right', browser: 'offline', netWatch: 'offline', tone: 'idle' },
 ];
 
+const evidence: { title: string; cost: string; tone: Tone; body: React.ReactNode }[] = [
+  {
+    title: "The browser's own signals",
+    cost: '0 requests',
+    tone: 'good',
+    body: 'The online and offline events, the tab becoming visible, a page restored from the back and forward cache. Offline is trusted at once.',
+  },
+  {
+    title: 'Your own requests',
+    cost: '0 extra requests',
+    tone: 'good',
+    body: (
+      <>
+        Wrap <code className="font-mono text-sm">fetch</code> once. A response proves the network works and becomes a latency sample. A network error raises a suspicion.
+      </>
+    ),
+  },
+  {
+    title: 'A probe, when needed',
+    cost: '1 HEAD request',
+    tone: 'slow',
+    body: 'A tiny request to your ping endpoint settles a suspicion. While offline it retries after 2 seconds, then 4, 8 and so on up to 30, and stops when the connection is back.',
+  },
+];
+
 const qualityBands: { name: string; range: string; tone: Tone }[] = [
   { name: 'excellent', range: 'under 150 ms', tone: 'good' },
   { name: 'good', range: '150 to 400 ms', tone: 'good' },
@@ -240,50 +265,35 @@ export default async function HomePage() {
         </Section>
 
         <Section title="It asks the network only when something looks wrong">
-          <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className={proseClass}>
-              <p>
-                net-watch collects evidence from sources that cost nothing and sends a request of its own only when those sources disagree or go quiet. While the app is online
-                and idle it sends nothing beyond a check at startup and one when the tab comes back into view, unless you opt in to a heartbeat.
-              </p>
-              <p>
-                The result is one immutable state object. It changes only when a value changes after rounding, so a stream of similar measurements does not re-render your UI.
-              </p>
-              <p>
-                <Link href="/docs/concepts/how-it-works" className="font-medium text-fd-foreground underline underline-offset-4">
-                  See the full flow, with diagrams
-                </Link>
-              </p>
-            </div>
-            <ol className="space-y-6 border-l pl-6">
-              <li>
-                <h3 className="font-display text-xl font-semibold">The browser&apos;s own signals</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  The online and offline events, the tab becoming visible again, and a page restored from the back and forward cache. A report of &quot;offline&quot; is trusted at
-                  once.
-                </p>
+          <p className={`${proseClass} mt-6`}>
+            net-watch collects evidence that costs nothing first, and sends a request of its own only when that evidence disagrees or goes quiet. Online and idle, it sends
+            nothing beyond a check at startup and one when the tab returns to view, unless you opt in to a heartbeat.
+          </p>
+          <ol className="mt-10 grid gap-4 md:grid-cols-3">
+            {evidence.map((step, i) => (
+              <li key={step.title} className="flex flex-col rounded-lg border bg-fd-card p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-sm text-fd-muted-foreground">0{i + 1}</span>
+                  <span className="rounded border px-2 py-0.5 font-mono text-xs font-medium" style={tint(step.tone)}>
+                    {step.cost}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-display text-xl font-semibold">{step.title}</h3>
+                <p className="mt-2 text-fd-muted-foreground">{step.body}</p>
               </li>
-              <li>
-                <h3 className="font-display text-xl font-semibold">Your own requests</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  Wrap <code className="font-mono text-sm">fetch</code> once. Every response proves the network works and becomes a latency sample. A network error raises a
-                  suspicion.
-                </p>
-              </li>
-              <li>
-                <h3 className="font-display text-xl font-semibold">A probe, when needed</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  A tiny HEAD request to your ping endpoint settles a suspicion. While offline it retries after 2 seconds, then 4, 8 and so on up to 30, and stops as soon as the
-                  connection is back.
-                </p>
-              </li>
-            </ol>
-          </div>
+            ))}
+          </ol>
           <Diagram
             src="/diagrams/detection-flow.svg"
             alt="Flowchart: a signal arrives. If the browser says offline, the state is Offline. If your server answered a real request, the state is Online and no probe is sent. Otherwise one probe runs: an answer means Online, no answer means Offline, which retries with backoff."
             caption="What happens when a signal arrives. The probe is the only request net-watch sends, and only when the first two checks cannot decide."
           />
+          <p className="max-w-[62ch] text-sm text-fd-muted-foreground">
+            The result is one immutable state object. It changes only when a value changes after rounding, so similar measurements do not re-render your UI.{' '}
+            <Link href="/docs/concepts/how-it-works" className="font-medium text-fd-foreground underline underline-offset-4">
+              See the full flow, with diagrams
+            </Link>
+          </p>
         </Section>
 
         <Section title="Latency, quality and download speed from what the browser already measures">
