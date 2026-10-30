@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { CopyCommand } from '@/components/home/copy-button';
+import { Diagram } from '@/components/diagram';
 import { LiveAccent } from '@/components/home/live-accent';
 import { Telemetry } from '@/components/home/telemetry';
 import { Prompt } from '@/components/prompt';
@@ -261,6 +262,11 @@ export default async function HomePage() {
               </li>
             </ol>
           </div>
+          <Diagram
+            src="/diagrams/detection-flow.svg"
+            alt="Flowchart: a signal arrives. If the browser says offline, the state is Offline. If your server answered a real request, the state is Online and no probe is sent. Otherwise one probe runs: an answer means Online, no answer means Offline, which retries with backoff."
+            caption="What happens when a signal arrives. The probe is the only request net-watch sends, and only when the first two checks cannot decide."
+          />
         </Section>
 
         <Section title="Latency, quality and download speed from what the browser already measures">
