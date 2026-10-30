@@ -28,16 +28,21 @@ components/home/         live demo (telemetry.tsx), page accent and banner (live
 lib/demo.ts              the demo's watcher, sample stores and request helpers
 app/api/ping|slow|payload  endpoints the live demo talks to (ping is also a working `pingUrl` example)
 app/docs/                docs layout and page renderer
-content/docs/            the documentation, as MDX
+content/docs/            the documentation, as MDX: (core)/ plus react/, vue/, angular/, one sidebar tab each
+components/platform-tabs.tsx  the platform list at the top of the docs sidebar
 public/diagrams/         SVG diagrams (copies of docs/diagrams/*.svg)
 lib/shared.ts            site name, GitHub and npm links, site URL
 ```
 
 Built in by Fumadocs: search (`/api/search`, Orama, runs on the server), `/llms.txt`, `/llms-full.txt`, every docs page as Markdown (`/docs/<page>.md`), Open Graph images (`/og/docs/...`), and "Copy Markdown" and "Open" buttons on each page.
 
+## Platforms in the sidebar
+
+The list of platforms at the top of the docs sidebar is `components/platform-tabs.tsx`. Each platform is a folder in `content/docs` whose `meta.json` has `"root": true`, which limits the sidebar tree to that folder. `(core)` is a route group, so it adds nothing to the URL: its pages keep their `/docs/...` paths. To add a platform (for example Svelte), create `content/docs/svelte/` with `meta.json` and `index.mdx`, list it in `content/docs/meta.json`, and add an entry to `platform-tabs.tsx`. If you move a published page, add a redirect in `next.config.mjs`.
+
 ## Write a page
 
-1. Add `content/docs/<section>/<name>.mdx` with `title` and `description` frontmatter.
+1. Add `content/docs/(core)/<section>/<name>.mdx` (or a platform folder) with `title` and `description` frontmatter.
 2. Add the page name to that section's `meta.json` to place it in the sidebar.
 3. MDX components available without an import: `Tabs`/`Tab`, `Steps`/`Step`, `Callout`, `Cards`/`Card`, `Accordions`, `TypeTable`, `Diagram`, and `Prompt` (a copyable prompt for AI assistants). Install commands use a ```` ```package-install ```` block, which renders npm, pnpm, yarn and bun tabs.
 

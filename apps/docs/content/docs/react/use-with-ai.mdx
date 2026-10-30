@@ -1,0 +1,84 @@
+---
+title: React with AI
+description: Rules and ready-made prompts for adding net-watch to a React or Next.js app with an AI coding assistant.
+icon: Sparkles
+---
+
+AI coding assistants write better React code when they read the real docs instead of guessing from memory. This page has rules for your repo and prompts that are specific to React. For the general setup (`llms.txt`, Markdown pages and what to give an assistant), see [Use net-watch with AI](/docs/ai/use-with-ai).
+
+## Rules for AGENTS.md, CLAUDE.md or Cursor rules
+
+Add this to your rules file, next to the general net-watch rules from the [AI page](/docs/ai/use-with-ai#rules-for-agentsmd-claudemd-or-cursor-rules). Replace `YOUR-SITE` with the address of this docs site.
+
+```md title="AGENTS.md"
+## net-watch with React
+
+This app uses `@net-watch/react` on top of `@net-watch/core`.
+
+- Before writing net-watch code, read https://YOUR-SITE/docs/react.md and https://YOUR-SITE/llms.txt. Do not rely on memory.
+- Read the state with `useNetworkStatus(watcher)` from `@net-watch/react`, passing the app's single watcher. Never build online state with `useEffect` and `navigator.onLine`.
+- Hooks only run in client components. In Next.js add `'use client'` to every file that calls the hook or creates a banner, and import the watcher only from client components.
+- Create the banner inside `useEffect` and return a cleanup that calls `banner.destroy()`.
+- On the server the hook returns a fixed state (`online: true`, `quality: 'unknown'`). Render quality-dependent UI after mount to avoid a hydration mismatch.
+- It needs React 18 or later.
+- Only use options and fields that appear in the docs. Never invent an option.
+```
+
+## Ready-made prompts
+
+Copy a prompt and paste it into your assistant. The address of this docs site is filled in on the deployed site (on a local copy it shows `YOUR-SITE`: replace it by hand).
+
+<Prompt title="Add net-watch to my React app">
+{`Add net-watch to this React project. Read https://YOUR-SITE/docs/react.md and https://YOUR-SITE/docs/quick-start.md first, and follow the docs, not your memory. Do not invent options or fields.
+
+1. Install @net-watch/core and @net-watch/react with the package manager the project already uses. React must be version 18 or later.
+2. Create ONE watcher in its own module with createNetworkWatcher({ pingUrl: '/api/ping' }), or use the project's existing health route as pingUrl. Import this watcher everywhere.
+3. Create a Status component that calls useNetworkStatus(watcher) and shows online or offline, plus the quality and the rtt in ms when they are known. Treat undefined metrics as unknown.
+4. Wrap the app's fetch calls with watchFetch(watcher) from @net-watch/core/fetch and use the wrapped function in the API layer. Do not patch window.fetch.
+5. Create the offline banner with createBanner from @net-watch/core/banner inside a useEffect, and call banner.destroy() in the cleanup.
+6. If this is Next.js, add 'use client' to every file that uses the hook or the banner, and render quality-dependent UI after mount.
+7. If there is no ping route, add one that answers HEAD and GET with 204 and Cache-Control: no-store.
+
+Make the smallest change that works, run the type checker and the tests, and tell me which files you changed.`}
+</Prompt>
+
+<Prompt title="Add a connection status badge">
+{`Add a connection status badge to this React app with net-watch. Read https://YOUR-SITE/docs/react.md and https://YOUR-SITE/docs/reference/state.md first.
+
+- Reuse the app's existing watcher module. If there is none, stop and tell me, instead of creating a second one.
+- Call useNetworkStatus(watcher) from @net-watch/react in a client component.
+- Show Offline when online is false. When online, show the quality (excellent, good, fair, poor, unknown) and the rtt in ms.
+- rtt, downlink and effectiveType can be undefined. Show a placeholder, never an estimate.
+- In Next.js the server renders quality as unknown. Render the quality part after mount (a mounted flag set in useEffect) so the server and the first client render match.
+- Do not add polling, timers or manual online and offline listeners.
+
+Run the type checker when you are done.`}
+</Prompt>
+
+<Prompt title="Review my React net-watch setup">
+{`Review how this React project uses net-watch. Read https://YOUR-SITE/docs/react.md and https://YOUR-SITE/llms-full.txt first and compare the code with the docs. Report problems, do not change code yet.
+
+Check each item and answer pass or fail with the file and line:
+1. The watcher is created once, in one module, and not inside a component, a hook body or a function that runs on every render.
+2. useNetworkStatus receives that watcher. There is no useEffect that reads navigator.onLine or listens to the online and offline events.
+3. In Next.js every file that uses the hook or createBanner starts with 'use client', and the watcher is imported only from client components.
+4. createBanner runs inside useEffect and the cleanup calls banner.destroy().
+5. Quality-dependent UI renders after mount, so server and first client render match.
+6. pingUrl is set, points to a same-origin HTTPS endpoint, and the endpoint answers HEAD with 204 and Cache-Control: no-store. It is not cached by a service worker, a CDN or a proxy.
+7. No manual polling: no setInterval or setTimeout that checks navigator.onLine or calls the ping URL.
+8. No invented options or fields. Every option and state field exists in the docs.
+
+End with a list of fixes ordered by impact.`}
+</Prompt>
+
+## Tips
+
+- **Say which router you use.** "Next.js App Router" and "Vite single-page app" lead to different file layouts.
+- **Say which version you use.** Run `npm ls @net-watch/react` and include the version in your prompt.
+- **Ask it to run the type checker.** A wrong option name fails `tsc` right away, which catches the most common mistake.
+- **Review the ping endpoint yourself.** Check that it is not cached and runs before auth, or the app would look online forever.
+
+## Next
+
+- [React guide](/docs/react): the full reference for `useNetworkStatus`.
+- [Use net-watch with AI](/docs/ai/use-with-ai): the general setup, `llms.txt` and prompts that are not framework specific.

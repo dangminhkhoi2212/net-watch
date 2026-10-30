@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { CopyCommand } from '@/components/home/copy-button';
+import { Diagram } from '@/components/diagram';
 import { LiveAccent } from '@/components/home/live-accent';
 import { Telemetry } from '@/components/home/telemetry';
 import { Prompt } from '@/components/prompt';
@@ -22,14 +23,65 @@ const sectionClass = 'border-t py-16 md:py-24';
 const h2Class = 'font-display text-3xl font-semibold tracking-tight sm:text-4xl';
 const proseClass = 'max-w-[62ch] space-y-4 text-lg leading-relaxed text-fd-muted-foreground';
 
-const situations = [
-  { situation: 'Wi-Fi is connected but the router has no internet', browser: 'online', netWatch: 'offline' },
-  { situation: 'Hotel or airport Wi-Fi is waiting for a sign-in page', browser: 'online', netWatch: 'offline' },
-  { situation: 'A VPN, Docker or virtual adapter is up and Wi-Fi is off', browser: 'online', netWatch: 'offline' },
-  { situation: 'Your server is down or blocked by a firewall', browser: 'online', netWatch: 'offline' },
-  { situation: 'You are in a tunnel: connected, but every request takes seconds', browser: 'online', netWatch: 'online, quality poor' },
-  { situation: 'Airplane mode', browser: 'offline', netWatch: 'offline' },
+type Tone = 'good' | 'slow' | 'bad' | 'idle';
+
+const situations: { title: string; detail: string; browser: string; netWatch: string; tone: Tone }[] = [
+  { title: 'Router has no internet', detail: 'Wi-Fi is connected, nothing is behind it', browser: 'online', netWatch: 'offline', tone: 'bad' },
+  { title: 'Captive portal', detail: 'Hotel or airport Wi-Fi waiting for a sign-in page', browser: 'online', netWatch: 'offline', tone: 'bad' },
+  { title: 'Virtual adapter', detail: 'A VPN or Docker adapter is up, Wi-Fi is off', browser: 'online', netWatch: 'offline', tone: 'bad' },
+  { title: 'Your server is down', detail: 'Or blocked by a firewall', browser: 'online', netWatch: 'offline', tone: 'bad' },
+  { title: 'In a tunnel', detail: 'Connected, but every request takes seconds', browser: 'online', netWatch: 'online, poor', tone: 'slow' },
+  { title: 'Airplane mode', detail: 'The one case the browser gets right', browser: 'offline', netWatch: 'offline', tone: 'idle' },
 ];
+
+const evidence: { title: string; cost: string; tone: Tone; body: React.ReactNode }[] = [
+  {
+    title: "The browser's own signals",
+    cost: '0 requests',
+    tone: 'good',
+    body: 'The online and offline events, the tab becoming visible, a page restored from the back and forward cache. Offline is trusted at once.',
+  },
+  {
+    title: 'Your own requests',
+    cost: '0 extra requests',
+    tone: 'good',
+    body: (
+      <>
+        Wrap <code className="font-mono text-sm">fetch</code> once. A response proves the network works and becomes a latency sample. A network error raises a suspicion.
+      </>
+    ),
+  },
+  {
+    title: 'A probe, when needed',
+    cost: '1 HEAD request',
+    tone: 'slow',
+    body: 'A tiny request to your ping endpoint settles a suspicion. While offline it retries after 2 seconds, then 4, 8 and so on up to 30, and stops when the connection is back.',
+  },
+];
+
+const qualityBands: { name: string; range: string; tone: Tone }[] = [
+  { name: 'excellent', range: 'under 150 ms', tone: 'good' },
+  { name: 'good', range: '150 to 400 ms', tone: 'good' },
+  { name: 'fair', range: '400 to 1400 ms', tone: 'slow' },
+  { name: 'poor', range: '1400 ms and up', tone: 'bad' },
+];
+
+const measures: { title: string; field: string; body: string }[] = [
+  { title: 'Latency', field: 'rtt', body: 'Every probe and every request you send gives a time to first byte. net-watch smooths the samples and rounds them to 50 ms.' },
+  {
+    title: 'Download speed',
+    field: 'downlink',
+    body: 'Read from the resource timing of large responses (50 kB or more) you already loaded. No test files, no extra data for your users. Cross-origin files need Timing-Allow-Origin.',
+  },
+  { title: 'Not available', field: 'undefined', body: 'A value the browser does not expose stays undefined, never a guess. No web page can read Wi-Fi signal strength.' },
+];
+
+/** A chip tinted with one of the four connection colours from global.css. */
+const tint = (tone: Tone) => ({
+  color: `var(--nw-${tone})`,
+  borderColor: `color-mix(in oklab, var(--nw-${tone}) 45%, transparent)`,
+  backgroundColor: `color-mix(in oklab, var(--nw-${tone}) 10%, transparent)`,
+});
 
 const stateFields = [
   { field: 'online, since', where: 'Every browser' },
@@ -183,127 +235,114 @@ export default async function HomePage() {
         </div>
 
         <Section title="navigator.onLine only knows that a network interface is up">
-          <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
-            <div className={proseClass}>
-              <p>
-                The browser reports &quot;online&quot; as soon as the device has a network interface. It does not know whether the router behind it has internet, whether the Wi-Fi is
-                waiting for a sign-in page, or whether your own server can be reached.
-              </p>
-              <p>
-                Apps that trust it keep showing a happy state while every request fails. Users stare at a spinner, retry by hand, and blame your app. The reverse direction is
-                reliable: when the browser says it is offline, it is. net-watch starts from that fact and checks the rest.
-              </p>
-              <p>
-                Hooks that only wrap the online and offline events inherit the same blind spot. Polling an endpoint every few seconds fixes it, but spends battery and data on every
-                visitor, all day, to answer a question that only matters when something goes wrong.
-              </p>
-            </div>
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-fd-muted/60">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Situation</th>
-                    <th className="px-3 py-2 font-medium">Browser says</th>
-                    <th className="px-3 py-2 font-medium">net-watch says</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {situations.map((row) => (
-                    <tr key={row.situation} className="border-t align-top">
-                      <td className="px-3 py-2.5">{row.situation}</td>
-                      <td className="px-3 py-2.5 font-mono text-xs">{row.browser}</td>
-                      <td className="px-3 py-2.5 font-mono text-xs">{row.netWatch}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <p className={`${proseClass} mt-6`}>
+            &quot;Online&quot; only means the device has a network interface. Apps that trust it keep showing a happy state while every request fails, and polling to fix that costs
+            every visitor battery and data, all day.
+          </p>
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {situations.map((row) => (
+              <li key={row.title} className="flex flex-col rounded-lg border bg-fd-card p-4">
+                <h3 className="font-display text-xl font-semibold">{row.title}</h3>
+                <p className="mt-1 text-sm text-fd-muted-foreground">{row.detail}</p>
+                <dl className="mt-auto grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 pt-5 text-xs">
+                  <dt className="text-fd-muted-foreground">Browser says</dt>
+                  <dd>
+                    <span className="inline-block rounded border bg-fd-muted/60 px-2 py-0.5 font-mono text-fd-muted-foreground">{row.browser}</span>
+                  </dd>
+                  <dt className="text-fd-muted-foreground">net-watch says</dt>
+                  <dd>
+                    <span className="inline-block rounded border px-2 py-0.5 font-mono font-medium" style={tint(row.tone)}>
+                      {row.netWatch}
+                    </span>
+                  </dd>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-8 max-w-[62ch] border-l-2 border-[var(--nw-accent)] pl-4 text-lg leading-relaxed">
+            The reverse is reliable: when the browser says it is offline, it is. net-watch starts from that and checks the rest.
+          </p>
         </Section>
 
         <Section title="It asks the network only when something looks wrong">
-          <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className={proseClass}>
-              <p>
-                net-watch collects evidence from sources that cost nothing and sends a request of its own only when those sources disagree or go quiet. While the app is online
-                and idle it sends nothing beyond a check at startup and one when the tab comes back into view, unless you opt in to a heartbeat.
-              </p>
-              <p>
-                The result is one immutable state object. It changes only when a value changes after rounding, so a stream of similar measurements does not re-render your UI.
-              </p>
-              <p>
-                <Link href="/docs/concepts/how-it-works" className="font-medium text-fd-foreground underline underline-offset-4">
-                  See the full flow, with diagrams
-                </Link>
-              </p>
-            </div>
-            <ol className="space-y-6 border-l pl-6">
-              <li>
-                <h3 className="font-display text-xl font-semibold">The browser&apos;s own signals</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  The online and offline events, the tab becoming visible again, and a page restored from the back and forward cache. A report of &quot;offline&quot; is trusted at
-                  once.
-                </p>
+          <p className={`${proseClass} mt-6`}>
+            net-watch collects evidence that costs nothing first, and sends a request of its own only when that evidence disagrees or goes quiet. Online and idle, it sends
+            nothing beyond a check at startup and one when the tab returns to view, unless you opt in to a heartbeat.
+          </p>
+          <ol className="mt-10 grid gap-4 md:grid-cols-3">
+            {evidence.map((step, i) => (
+              <li key={step.title} className="flex flex-col rounded-lg border bg-fd-card p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-sm text-fd-muted-foreground">0{i + 1}</span>
+                  <span className="rounded border px-2 py-0.5 font-mono text-xs font-medium" style={tint(step.tone)}>
+                    {step.cost}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-display text-xl font-semibold">{step.title}</h3>
+                <p className="mt-2 text-fd-muted-foreground">{step.body}</p>
               </li>
-              <li>
-                <h3 className="font-display text-xl font-semibold">Your own requests</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  Wrap <code className="font-mono text-sm">fetch</code> once. Every response proves the network works and becomes a latency sample. A network error raises a
-                  suspicion.
-                </p>
-              </li>
-              <li>
-                <h3 className="font-display text-xl font-semibold">A probe, when needed</h3>
-                <p className="mt-1 text-fd-muted-foreground">
-                  A tiny HEAD request to your ping endpoint settles a suspicion. While offline it retries after 2 seconds, then 4, 8 and so on up to 30, and stops as soon as the
-                  connection is back.
-                </p>
-              </li>
-            </ol>
-          </div>
+            ))}
+          </ol>
+          <Diagram
+            src="/diagrams/detection-flow.svg"
+            alt="Flowchart: a signal arrives. If the browser says offline, the state is Offline. If your server answered a real request, the state is Online and no probe is sent. Otherwise one probe runs: an answer means Online, no answer means Offline, which retries with backoff."
+            caption="What happens when a signal arrives. The probe is the only request net-watch sends, and only when the first two checks cannot decide."
+          />
+          <p className="max-w-[62ch] text-sm text-fd-muted-foreground">
+            The result is one immutable state object. It changes only when a value changes after rounding, so similar measurements do not re-render your UI.{' '}
+            <Link href="/docs/concepts/how-it-works" className="font-medium text-fd-foreground underline underline-offset-4">
+              See the full flow, with diagrams
+            </Link>
+          </p>
         </Section>
 
         <Section title="Latency, quality and download speed from what the browser already measures">
-          <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className={proseClass}>
-              <p>
-                Every probe and every request you send yields a time to first byte. net-watch smooths those samples, rounds them to 50 ms, and sorts the result into four quality
-                bands: excellent under 150 ms, good under 400, fair under 1400, and poor above. A quality level improves only after latency falls well below a boundary, so the
-                label does not flicker.
-              </p>
-              <p>
-                Download speed comes from the browser&apos;s resource timing of large responses you already loaded. There are no test files to download and no extra data for
-                your users to pay for. If you want a number on demand, load a large file (50 kB or more, from your own origin or with a Timing-Allow-Origin header) that is not served from cache, and the value updates.
-              </p>
-              <p>
-                Some things are not available to web pages in any browser, such as Wi-Fi signal strength. net-watch leaves those fields out instead of guessing, and a value the
-                browser does not expose is simply <code className="font-mono text-sm">undefined</code>.
-              </p>
-              <p>
-                <Link href="/docs/concepts/network-quality" className="font-medium text-fd-foreground underline underline-offset-4">
-                  How the numbers are computed
-                </Link>
-              </p>
-            </div>
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-fd-muted/60">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">State field</th>
-                    <th className="px-3 py-2 font-medium">Where you get it</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stateFields.map((row) => (
-                    <tr key={row.field} className="border-t align-top">
-                      <td className="px-3 py-2.5 font-mono text-xs">{row.field}</td>
-                      <td className="px-3 py-2.5">{row.where}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <ol className="mt-10 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {qualityBands.map((band) => (
+              <li key={band.name} className="rounded-lg border bg-fd-card p-4">
+                <div className="h-1.5 rounded-full" style={{ backgroundColor: `var(--nw-${band.tone})` }} aria-hidden />
+                <p className="mt-3 font-display text-2xl font-semibold">{band.name}</p>
+                <p className="mt-0.5 font-mono text-sm text-fd-muted-foreground">{band.range}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 max-w-[62ch] text-sm text-fd-muted-foreground">
+            Quality is read from smoothed latency. It improves only after latency falls well below a boundary, so the label does not flicker.
+          </p>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {measures.map((item) => (
+              <div key={item.title} className="rounded-lg border p-5">
+                <p className="font-mono text-sm font-medium text-fd-muted-foreground">{item.field}</p>
+                <h3 className="mt-1 font-display text-xl font-semibold">{item.title}</h3>
+                <p className="mt-2 text-fd-muted-foreground">{item.body}</p>
+              </div>
+            ))}
           </div>
+
+          <div className="mt-8 max-w-3xl overflow-x-auto rounded-lg border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-fd-muted/60">
+                <tr>
+                  <th className="px-3 py-2 font-medium">State field</th>
+                  <th className="px-3 py-2 font-medium">Where you get it</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stateFields.map((row) => (
+                  <tr key={row.field} className="border-t align-top">
+                    <td className="px-3 py-2.5 font-mono text-xs">{row.field}</td>
+                    <td className="px-3 py-2.5">{row.where}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-6">
+            <Link href="/docs/concepts/network-quality" className="font-medium text-fd-foreground underline underline-offset-4">
+              How the numbers are computed
+            </Link>
+          </p>
         </Section>
 
         <Section title="One state object in whatever framework you use">

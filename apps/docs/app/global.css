@@ -54,3 +54,9 @@ html > body[data-scroll-locked] {
     animation: nw-draw 700ms ease-out;
   }
 }
+
+/* A platform's first page is reached from the platform list at the top of the sidebar, so its own entry would only repeat it.
+   The page stays in the page tree: that is what limits the sidebar to the platform's pages. */
+:is(#nd-sidebar, #nd-sidebar-mobile) :is(a[href='/docs/react'], a[href='/docs/vue'], a[href='/docs/angular']):not([data-platform-tab]) {
+  display: none;
+}

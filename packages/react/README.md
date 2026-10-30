@@ -49,7 +49,7 @@ export function ConnectionBadge() {
 
 ## Learn more
 
-[React guide](https://net-watch-docs.vercel.app/docs/frameworks/react) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
+[React guide](https://net-watch-docs.vercel.app/docs/react) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
 
 ## License
 

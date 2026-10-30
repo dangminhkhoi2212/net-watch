@@ -51,7 +51,7 @@ export class ConnectionComponent {
 
 ## Learn more
 
-[Angular guide](https://net-watch-docs.vercel.app/docs/frameworks/angular) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
+[Angular guide](https://net-watch-docs.vercel.app/docs/angular) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
 
 ## License
 
