@@ -154,7 +154,7 @@ watcher.subscribe(({ online, quality, rtt }) => {
 
 const aiPrompt = `Add net-watch to this project.
 
-1. Read https://YOUR-SITE/llms-full.txt (the net-watch docs in one file) before writing any code, and follow it instead of your memory.
+1. Read https://net-watch-docs.vercel.app/llms-full.txt (the net-watch docs in one file) before writing any code, and follow it instead of your memory.
 2. Detect the framework. Install @net-watch/core and the matching adapter: @net-watch/react, @net-watch/vue or @net-watch/angular.
 3. Create one watcher in its own module: createNetworkWatcher({ pingUrl: '/api/ping' }). Never create a watcher per component.
 4. Add a /api/ping route to the backend that answers GET and HEAD with 204 and Cache-Control: no-store.

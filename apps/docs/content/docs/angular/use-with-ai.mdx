@@ -8,14 +8,14 @@ AI coding assistants write better Angular code when they read the real docs inst
 
 ## Rules for AGENTS.md, CLAUDE.md or Cursor rules
 
-Add this to your rules file, next to the general net-watch rules from the [AI page](/docs/ai/use-with-ai#rules-for-agentsmd-claudemd-or-cursor-rules). Replace `YOUR-SITE` with the address of this docs site.
+Add this to your rules file, next to the general net-watch rules from the [AI page](/docs/ai/use-with-ai#rules-for-agentsmd-claudemd-or-cursor-rules).
 
 ```md title="AGENTS.md"
 ## net-watch with Angular
 
 This app uses `@net-watch/angular` on top of `@net-watch/core`.
 
-- Before writing net-watch code, read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/llms.txt. Do not rely on memory.
+- Before writing net-watch code, read https://net-watch-docs.vercel.app/docs/angular.md and https://net-watch-docs.vercel.app/llms.txt. Do not rely on memory.
 - Read the state with `injectNetworkStatus(watcher)` from `@net-watch/angular`. It returns a read-only signal: call it as `status()`. Never build online state with `navigator.onLine` or the `online` and `offline` events yourself.
 - `injectNetworkStatus` must run in an injection context: a constructor, a field initializer, or `runInInjectionContext`. Never call it from a method, a lifecycle hook or a timer.
 - Use one watcher for the app. A module-level `watcher` is simplest; to swap it in tests, provide it through an `InjectionToken` and pass `inject(NETWORK_WATCHER)`.
@@ -26,10 +26,10 @@ This app uses `@net-watch/angular` on top of `@net-watch/core`.
 
 ## Ready-made prompts
 
-Copy a prompt and paste it into your assistant. The address of this docs site is filled in on the deployed site (on a local copy it shows `YOUR-SITE`: replace it by hand).
+Copy a prompt and paste it into your assistant.
 
 <Prompt title="Add net-watch to my Angular app">
-{`Add net-watch to this Angular project. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/docs/quick-start.md first, and follow the docs, not your memory. Do not invent options or fields.
+{`Add net-watch to this Angular project. Read https://net-watch-docs.vercel.app/docs/angular.md and https://net-watch-docs.vercel.app/docs/quick-start.md first, and follow the docs, not your memory. Do not invent options or fields.
 
 1. Install @net-watch/core and @net-watch/angular with the package manager the project already uses. Angular must be version 17 or later.
 2. Create ONE watcher in its own module with createNetworkWatcher({ pingUrl: '/api/ping' }), or use the project's existing health route as pingUrl. If the project prefers dependency injection, provide it through an InjectionToken with providedIn root instead.
@@ -43,7 +43,7 @@ Make the smallest change that works, run the type checker and the tests, and tel
 </Prompt>
 
 <Prompt title="Add a connection status badge">
-{`Add a connection status badge to this Angular app with net-watch. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/docs/reference/state.md first.
+{`Add a connection status badge to this Angular app with net-watch. Read https://net-watch-docs.vercel.app/docs/angular.md and https://net-watch-docs.vercel.app/docs/reference/state.md first.
 
 - Reuse the app's existing watcher. If there is none, stop and tell me, instead of creating a second one.
 - Use a standalone component with a field initializer: status = injectNetworkStatus(watcher). It must run in an injection context, so never call it from a method or a lifecycle hook. The result is a read-only signal: call status().
@@ -56,7 +56,7 @@ Run the type checker when you are done.`}
 </Prompt>
 
 <Prompt title="Review my Angular net-watch setup">
-{`Review how this Angular project uses net-watch. Read https://YOUR-SITE/docs/angular.md and https://YOUR-SITE/llms-full.txt first and compare the code with the docs. Report problems, do not change code yet.
+{`Review how this Angular project uses net-watch. Read https://net-watch-docs.vercel.app/docs/angular.md and https://net-watch-docs.vercel.app/llms-full.txt first and compare the code with the docs. Report problems, do not change code yet.
 
 Check each item and answer pass or fail with the file and line:
 1. The watcher is created once, in one module or one InjectionToken factory, and not inside a component or a method.

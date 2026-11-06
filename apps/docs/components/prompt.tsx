@@ -1,16 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
 /** A prompt for an AI coding assistant, with a copy button. `children` is the prompt text. */
 export function Prompt({ title, children }: { title: string; children: string }) {
   const [copied, setCopied] = useState(false);
-  // Prompts say YOUR-SITE where the docs site address goes. After mount the real address is filled in,
-  // so a prompt copied from the deployed site works as pasted. Doing it after mount keeps the server HTML identical.
-  const [origin, setOrigin] = useState<string>();
-  useEffect(() => setOrigin(window.location.origin), []);
-  const text = origin ? children.trim().replaceAll('https://YOUR-SITE', origin).replaceAll('YOUR-SITE', new URL(origin).host) : children.trim();
+  const text = children.trim();
 
   async function copy() {
     try {
