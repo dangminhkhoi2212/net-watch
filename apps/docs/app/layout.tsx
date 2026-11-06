@@ -1,17 +1,15 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import { description, siteUrl, tagline } from '@/lib/shared';
-import '@fontsource/ibm-plex-sans/latin-400.css';
-import '@fontsource/ibm-plex-sans/latin-500.css';
-import '@fontsource/ibm-plex-sans/latin-600.css';
-import '@fontsource/ibm-plex-sans-condensed/latin-500.css';
-import '@fontsource/ibm-plex-sans-condensed/latin-600.css';
-import '@fontsource/ibm-plex-sans-condensed/latin-700.css';
+import '@fontsource/outfit/latin-400.css';
+import '@fontsource/outfit/latin-500.css';
+import '@fontsource/outfit/latin-600.css';
+import '@fontsource/outfit/latin-700.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
 import './global.css';
 
-// Plex is an instrument-panel family: the condensed cut carries headlines, the mono cut carries every measured number.
+// Outfit carries the text and the headlines. It has no monospace cut, so IBM Plex Mono carries every measured number and code sample.
 // The Latin files come from @fontsource, so the build never has to reach Google Fonts. global.css maps them to --font-*.
 
 export const metadata: Metadata = {

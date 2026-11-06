@@ -3,9 +3,9 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @theme inline {
-  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-  --font-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* The four states of a connection. The live demo and the page accent read these; nothing else has a brand colour. */
