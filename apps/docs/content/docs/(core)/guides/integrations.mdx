@@ -1,6 +1,6 @@
 ---
 title: Integrations
-description: Feed Capacitor, a service worker or any other source into net-watch with watcher.report(), and drive TanStack Query from it.
+description: Feed Capacitor, a service worker or any other source into net-watch with watcher.report(), and hold a retry until the connection is back.
 icon: Plug
 ---
 
@@ -73,27 +73,6 @@ navigator.serviceWorker.addEventListener('message', (event) => {
 
 Each request sends one message to every open tab. For a busy app, send at most one message per second, or only when the result differs from the last one.
 
-## TanStack Query
-
-Here the data flows the other way: net-watch tells Query whether the app is online, so queries pause while offline and resume when the connection returns.
-
-```ts title="query-client.ts"
-import { onlineManager } from '@tanstack/react-query' // also exported by @tanstack/query-core
-import { watcher } from './network'
-
-// Replace Query's own online/offline listeners, so net-watch is the only source.
-onlineManager.setEventListener((setOnline) => {
-  setOnline(watcher.getState().online)
-  return watcher.subscribe((state) => setOnline(state.online))
-})
-```
-
-`setEventListener` swaps out Query's default listeners, so browser events no longer write to Query's online state behind net-watch's back. Because net-watch confirms the connection with a probe, Query follows "can reach the server" and not just `navigator.onLine`.
-
-## Electron and Tauri
-
-The renderer of an Electron app and the web view of a Tauri app are browsers. Core works unchanged, with the same `createNetworkWatcher` and `pingUrl`. Make sure the web view's engine meets the [browser floor](/docs/concepts/browser-support).
-
 ## Wait for the connection before a retry
 
 `waitForOnline()` returns a promise that resolves when the watcher is online, and resolves at once if it already is. Use it to hold a retry until the user is back.
@@ -124,3 +103,8 @@ This recipe needs a `pingUrl`. Without one, `check()` answers from `navigator.on
 `waitForOnline()` has no timeout. If you need one, race it against a timer.
 
 Only retry requests that are safe to repeat. A `POST` that reached the server before the connection dropped may run twice, unless your API uses idempotency keys.
+
+## More integrations
+
+- [TanStack Query](/docs/guides/tanstack-query): pause and resume queries from net-watch's state.
+- [Electron and Tauri](/docs/guides/electron-tauri): use net-watch in a desktop app.

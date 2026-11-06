@@ -3,9 +3,16 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @theme inline {
-  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-  --font-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  /* About 1.5x Tailwind's defaults (0.25, 0.375, 0.5, 0.75, 1 rem). Every rounded-* class, Fumadocs UI included, follows these. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
 }
 
 /* The four states of a connection. The live demo and the page accent read these; nothing else has a brand colour. */
@@ -53,4 +60,10 @@ html > body[data-scroll-locked] {
     stroke-dasharray: var(--nw-len, 600);
     animation: nw-draw 700ms ease-out;
   }
+}
+
+/* A platform's first page is reached from the platform list at the top of the sidebar, so its own entry would only repeat it.
+   The page stays in the page tree: that is what limits the sidebar to the platform's pages. */
+:is(#nd-sidebar, #nd-sidebar-mobile) :is(a[href='/docs/react'], a[href='/docs/vue'], a[href='/docs/angular']):not([data-platform-tab]) {
+  display: none;
 }

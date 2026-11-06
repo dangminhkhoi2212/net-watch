@@ -51,7 +51,7 @@ const status = useNetworkStatus()
 
 ## Learn more
 
-[Vue guide](https://net-watch-docs.vercel.app/docs/frameworks/vue) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
+[Vue guide](https://net-watch-docs.vercel.app/docs/vue) · [Core package](https://www.npmjs.com/package/@net-watch/core) · [Source](https://github.com/dangminhkhoi2212/net-watch)
 
 ## License
 

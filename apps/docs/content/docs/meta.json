@@ -1,4 +1,4 @@
 {
   "title": "net-watch",
-  "pages": ["index", "quick-start", "concepts", "guides", "frameworks", "reference", "ai"]
+  "pages": ["(core)", "react", "vue", "angular"]
 }

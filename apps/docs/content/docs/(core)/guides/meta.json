@@ -1,0 +1,13 @@
+{
+  "title": "Guides",
+  "icon": "BookOpen",
+  "pages": [
+    "ping-endpoint",
+    "watch-fetch",
+    "banner",
+    "ssr",
+    "integrations",
+    "tanstack-query",
+    "electron-tauri"
+  ]
+}

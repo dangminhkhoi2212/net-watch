@@ -1,0 +1,68 @@
+---
+title: TanStack Query
+description: Drive TanStack Query's online manager from net-watch, so queries pause while the user cannot reach your server and resume when they can.
+icon: DatabaseZap
+---
+
+TanStack Query decides whether to run a query by asking its `onlineManager` if the app is online. By default the manager listens to the browser's `online` and `offline` events, which only say that a network interface is up. With net-watch it follows the connection that matters: whether the user can reach your server.
+
+Here the data flows the other way from the [other integrations](/docs/guides/integrations): net-watch tells Query, and Query never reports back.
+
+<Callout type="info">
+This is a recipe you copy into your app. It ships in neither `@net-watch/core` nor an adapter. It assumes `watcher` is your app's watcher, and a `pingUrl` makes it much more useful: see [the ping endpoint guide](/docs/guides/ping-endpoint).
+</Callout>
+
+## Connect the two
+
+Do this once, in the module that creates your `QueryClient`:
+
+```ts title="query-client.ts"
+import { QueryClient, onlineManager } from '@tanstack/react-query' // also exported by @tanstack/query-core
+import { watcher } from './network'
+
+// Replace Query's own online/offline listeners, so net-watch is the only source.
+onlineManager.setEventListener((setOnline) => {
+  setOnline(watcher.getState().online)
+  return watcher.subscribe((state) => setOnline(state.online))
+})
+
+export const queryClient = new QueryClient()
+```
+
+`setEventListener` swaps out Query's default listeners, so browser events no longer write to Query's online state behind net-watch's back. The function you pass receives `setOnline`, and returns a function that removes the subscription.
+
+The same code works with the Vue, Angular and Svelte versions of TanStack Query. They share the same `onlineManager`, and `@tanstack/query-core` exports it too.
+
+## What changes in your app
+
+- **Queries pause while offline.** With Query's default `networkMode: 'online'`, a query does not run while the manager says offline. It stays in the `paused` fetch state, and runs when the connection returns. Because net-watch confirms the connection with a probe, "connected to Wi-Fi but no internet" counts as offline.
+- **Refetch on reconnect.** When the manager goes from offline to online, Query refetches the stale queries that have `refetchOnReconnect` on, which is the default.
+- **Mutations pause the same way.** A mutation waits until the app is online, then runs.
+
+If a query must always run, even while offline (for example, it reads from a local cache), set `networkMode: 'always'` or `'offlineFirst'` on it. See TanStack Query's documentation for the exact behaviour of each mode.
+
+## Show the state in the UI
+
+Read net-watch's state with the adapter for your framework, and use it next to Query's own `isPaused` or `fetchStatus`. For example, show "Waiting for connection" when a query is paused:
+
+```tsx title="Projects.tsx"
+import { useQuery } from '@tanstack/react-query'
+import { useNetworkStatus } from '@net-watch/react'
+import { watcher } from './network'
+
+export function Projects() {
+  const { online } = useNetworkStatus(watcher)
+  const { data, isPaused } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => fetch('/api/projects').then((res) => res.json()),
+  })
+
+  if (isPaused && !online) return <p>Waiting for the connection</p>
+  return <pre>{JSON.stringify(data, null, 2)}</pre>
+}
+```
+
+## Next
+
+- [Integrations](/docs/guides/integrations): feed Capacitor, a service worker or another source into net-watch.
+- [Measure with watchFetch](/docs/guides/watch-fetch): keep the state fresh from your real requests.
