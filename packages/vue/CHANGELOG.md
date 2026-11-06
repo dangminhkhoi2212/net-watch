@@ -1,5 +1,12 @@
 # @net-watch/vue
 
+## 0.2.1
+
+### Patch Changes
+
+- a62e38f: README links point at the new framework pages of the documentation site (`/docs/react`, `/docs/vue`, `/docs/angular`).
+- @net-watch/core@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
